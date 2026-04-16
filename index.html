@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="bn">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#2563eb" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <base href="/" />
+    <title>Foundation Manager Pro</title>
+    <link rel="manifest" href="/manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Atma:wght@300;400;500;600;700&family=Noto+Sans+Bengali:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Polyfill for process/global to prevent Loading crashes -->
+    <script>
+      window.global = window;
+      window.process = {
+        env: { NODE_ENV: 'development' }
+      };
+    </script>
+
+    <!-- External Libs (Globals) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Error Handler for Mobile Debugging -->
+    <script>
+      window.onerror = function(msg, url, line, col, error) {
+        setTimeout(function() {
+             if (document.body && document.getElementById('root') && document.getElementById('root').innerHTML.includes('Loading')) {
+                var extra = !col ? '' : '\ncolumn: ' + col;
+                extra += !error ? '' : '\nerror: ' + error;
+                // document.body.innerHTML = '<div style="padding:20px; color:red;"><h3>App Error</h3><p>' + msg + '</p></div>'; // Uncomment for debug
+             }
+        }, 3000);
+        return false;
+      };
+    </script>
+
+    <!-- ES Module Shims for Android WebView Compatibility -->
+    <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+
+    <style>
+      body {
+        font-family: 'Inter', 'Noto Sans Bengali', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        text-rendering: optimizeLegibility;
+      }
+
+      /* STRICT A4 PAPER STYLES */
+      .a4-wrapper {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        background-color: #e2e8f0;
+        padding: 2rem;
+        overflow: visible; /* Allow content to flow */
+      }
+
+      .a4-paper {
+        background-color: white;
+        width: 210mm;
+        min-height: 297mm; /* Minimum A4 height */
+        height: auto; /* Expands if content is longer */
+        padding: 25.4mm; /* 1 inch padding */
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        color: black;
+        flex-shrink: 0;
+        position: relative;
+        box-sizing: border-box;
+        overflow: visible;
+        margin-bottom: 2rem; /* Spacing between pages in column view */
+      }
+
+      /* MOBILE SCALING */
+      @media screen and (max-width: 850px) {
+        .a4-wrapper {
+            padding: 10px;
+            display: block;
+            overflow-x: auto; 
+            background-color: #f1f5f9;
+        }
+        .a4-paper {
+           margin: 0 auto 20px auto;
+           min-width: 210mm; 
+           transform: scale(0.9);
+           transform-origin: top center;
+        }
+      }
+
+      /* PRINT SPECIFIC STYLES */
+      @media print {
+        @page { 
+          size: A4 portrait; 
+          margin: 0; 
+        }
+        body { 
+          margin: 0; 
+          padding: 0; 
+          background: white; 
+          -webkit-print-color-adjust: exact !important; 
+          print-color-adjust: exact !important;
+        }
+        
+        .no-print { display: none !important; }
+        
+        .a4-wrapper {
+            padding: 0;
+            background: white;
+            display: block;
+            width: 100%;
+            margin: 0;
+        }
+
+        .a4-paper {
+            width: 210mm;
+            height: auto; 
+            min-height: 297mm;
+            padding: 25.4mm !important;
+            margin: 0 !important;
+            box-shadow: none;
+            page-break-after: always;
+            overflow: visible;
+        }
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.2.0",
+    "react/": "https://esm.sh/react@18.2.0/",
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
+    "react-dom/": "https://esm.sh/react-dom@18.2.0/",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+    "recharts": "https://esm.sh/recharts@2.12.3?external=react,react-dom",
+    "lucide-react": "https://esm.sh/lucide-react@0.344.0?external=react,react-dom",
+    "@google/genai": "https://esm.sh/@google/genai@0.1.1",
+    "jspdf": "https://esm.sh/jspdf@2.5.1",
+    "html2canvas": "https://esm.sh/html2canvas@1.4.1",
+    "qrcode": "https://esm.sh/qrcode@1.5.3"
+  }
+}
+</script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').then((registration) => {
+        console.log('Service Worker registered');
+      }, (err) => {
+        console.log('Service Worker registration failed:', err);
+      });
+    });
+  }
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-slate-50 text-slate-900">
+    <div id="root">
+       <div style="display:flex; justify-content:center; align-items:center; height:100vh; font-weight:bold; color:#94a3b8;">
+         <div style="text-align:center;">
+           <div style="width: 40px; height: 40px; border: 4px solid #e2e8f0; border-top: 4px solid #3b82f6; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 10px;"></div>
+           Loading App...
+         </div>
+       </div>
+       <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+    </div>
+    <!-- CRITICAL: Load the main entry file -->
+    <script type="module" src="./index.tsx"></script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>

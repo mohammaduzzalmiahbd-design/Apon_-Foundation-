@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>আপন ফাউন্ডেশন - ব্লগারের জন্য কোড</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; color: #333; background: #f0fdf4; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #166534; border-bottom: 2px solid #bbf7d0; pb-2; }
+        code { background: #eee; padding: 2px 5px; rounded: 4px; font-family: monospace; }
+        .code-block { background: #1e293b; color: #e2e8f0; padding: 15px; border-radius: 8px; overflow-x: auto; font-family: monospace; font-size: 14px; margin: 15px 0; }
+        .btn { display: inline-block; background: #166534; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-top: 10px; }
+        .step { margin-bottom: 20px; }
+        .step-title { font-weight: bold; font-size: 1.1em; color: #15803d; margin-bottom: 5px; display: block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>গুগল ব্লগারে যুক্ত করার নিয়ম</h1>
+    <p>আপনার "আপন ফাউন্ডেশন ম্যানেজমেন্ট সিস্টেম" সফটওয়্যারটি গুগলের ব্লগারে (Blogger) যুক্ত করার জন্য নিচের ধাপগুলো অনুসরণ করুন।</p>
+
+    <div class="step">
+        <span class="step-title">ধাপ ১: কোড হোস্ট করা</span>
+        <p>ব্লগার সরাসরি রিয়েক্ট অ্যাপ (React App) চালাতে পারে না। তাই প্রথমে এই অ্যাপটি একটি ফ্রি হোস্টিংয়ে আপলোড করতে হবে।</p>
+        <ul>
+            <li><a href="https://app.netlify.com/drop" target="_blank">Netlify Drop</a> এ যান।</li>
+            <li>আপনার প্রোজেক্টের <code>dist</code> ফোল্ডারটি সেখানে ড্র্যাগ করে ছেড়ে দিন। (প্রথমে <code>npm run build</code> কমান্ড দিয়ে বিল্ড করে নিতে হবে)।</li>
+            <li>আপলোড হলে তারা আপনাকে একটি লিংক দেবে (যেমন: <code>https://apon-foundation-app.netlify.app</code>)।</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <span class="step-title">ধাপ ২: ব্লগারে পেজ তৈরি</span>
+        <ul>
+            <li>আপনার ব্লগারের ড্যাশবোর্ডে লগইন করুন।</li>
+            <li>বাম পাশের মেনু থেকে <b>Pages</b> এ ক্লিক করুন এবং <b>New Page</b> এ ক্লিক করুন।</li>
+            <li>পেজের টাইটেল দিন (যেমন: "সদস্য তালিকা ও গঠনতন্ত্র")।</li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <span class="step-title">ধাপ ৩: কোড পেস্ট করা</span>
+        <p>এবার এডিটরের বাম পাশে পেন্সিল আইকনে ক্লিক করে <b>HTML View</b> সিলেক্ট করুন। আগে থেকে কিছু থাকলে মুছে ফেলুন এবং নিচের কোডটি পেস্ট করুন:</p>
+        
+        <div class="code-block">
+&lt;!-- Apon Foundation System Embed --&gt;
+&lt;iframe 
+    src="আপনার_অ্যাপের_লিংক_এখানে_দিন" 
+    style="width: 100%; height: 1000px; border: none; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);" 
+    title="Apon Foundation System"
+&gt;&lt;/iframe&gt;
+        </div>
+        
+        <p><i>নোট: "আপনার_অ্যাপের_লিংক_এখানে_দিন" এর জায়গায় ধাপ ১ এ পাওয়া লিংকটি বসান।</i></p>
+    </div>
+
+    <div class="step">
+        <span class="step-title">ধাপ ৪: সেভ ও পাবলিশ</span>
+        <p>সবশেষে ডানদিকের উপরে <b>Publish</b> বাটনে ক্লিক করুন। এখন আপনার ব্লগের মেনুতে এই পেজটি যুক্ত করে দিন।</p>
+    </div>
+
+    <div style="background: #fff7ed; padding: 15px; border-left: 4px solid #f97316; border-radius: 4px;">
+        <strong>টিপস:</strong> অ্যাপের ভেতরে <b>"ডাটা ও সেটিংস"</b> অপশনে গেলে আপনি অটোমেটিক কোড জেনারেটর পাবেন।
+    </div>
+</div>
+
+</body>
+</html>
