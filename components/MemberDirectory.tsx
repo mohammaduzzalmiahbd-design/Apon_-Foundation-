@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Search, Plus, User, Trash2, CreditCard, MapPin, Droplet, Calendar, Briefcase, Download, Image as ImageIcon, FileDown, FileText, Grid, Printer, Upload, Camera } from 'lucide-react';
-import { Member, CouncilType } from '../types';
+import { Member, CouncilType, AppSettings } from '../types';
 import { DocumentHeader } from './DocumentHeader';
-import { downloadAsImage, downloadAsPDF } from '../utils/downloadUtils';
+import { DownloadDropdown } from './DownloadDropdown';
 
 interface Props {
   members: Member[];
@@ -10,18 +10,19 @@ interface Props {
   onUpdateMember: (member: Member) => void;
   onDeleteMember: (id: string) => void;
   logoUrl?: string | null;
+  settings: AppSettings;
+  isAdmin?: boolean;
 }
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-// Helper to access html2canvas
-const getHtml2Canvas = () => (window as any).html2canvas;
-
-export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdateMember, onDeleteMember, logoUrl }) => {
+export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdateMember, onDeleteMember, logoUrl, settings, isAdmin }) => {
   const [activeTab, setActiveTab] = useState<CouncilType>('GENERAL');
   const [viewMode, setViewMode] = useState<'GRID' | 'PRINT'>('GRID');
   const [searchTerm, setSearchTerm] = useState('');
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
   const [newMember, setNewMember] = useState<Partial<Member>>({ 
     council: 'GENERAL', 
     joinDate: new Date().toISOString().split('T')[0] 
@@ -51,26 +52,6 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
       return nameMatch || phoneMatch || nidMatch;
     });
   }, [members, activeTab, searchTerm]);
-
-  const handleDownloadCard = async (member: Member) => {
-    const element = cardRefs.current[member.id];
-    const html2canvas = getHtml2Canvas();
-    if (!element || !html2canvas) return;
-
-    try {
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        backgroundColor: '#ffffff',
-        useCORS: true
-      });
-      const link = document.createElement('a');
-      link.download = `Card_${member.name}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    } catch (err) {
-      console.error("Card generation failed", err);
-    }
-  };
 
   // Image Helper: Compress and return base64
   const compressImage = (file: File, callback: (base64: string) => void) => {
@@ -143,22 +124,43 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newMember.name && newMember.phone) {
-      onAddMember({
-        id: Date.now().toString(),
-        name: newMember.name!,
-        phone: newMember.phone!,
-        council: newMember.council as CouncilType,
-        designation: newMember.designation,
-        nid: newMember.nid,
-        address: newMember.address,
-        bloodGroup: newMember.bloodGroup,
-        joinDate: newMember.joinDate || new Date().toISOString().split('T')[0],
-        profileImage: newMember.profileImage
-      });
-      setShowAddForm(false);
+      if (editingMemberId) {
+        onUpdateMember({
+          ...(newMember as Member),
+          id: editingMemberId,
+        });
+      } else {
+        onAddMember({
+          id: Date.now().toString(),
+          name: newMember.name!,
+          phone: newMember.phone!,
+          council: newMember.council as CouncilType,
+          designation: newMember.designation,
+          nid: newMember.nid,
+          address: newMember.address,
+          bloodGroup: newMember.bloodGroup,
+          joinDate: newMember.joinDate || new Date().toISOString().split('T')[0],
+          profileImage: newMember.profileImage
+        });
+      }
+      setShowForm(false);
+      setEditingMemberId(null);
       setNewMember({ council: activeTab, joinDate: new Date().toISOString().split('T')[0] });
     }
   };
+
+  const handleEditMember = (member: Member) => {
+    setNewMember(member);
+    setEditingMemberId(member.id);
+    setShowForm(true);
+  };
+
+  const openAddForm = () => {
+    setNewMember({ council: activeTab, joinDate: new Date().toISOString().split('T')[0] });
+    setEditingMemberId(null);
+    setShowForm(true);
+  };
+
 
   const getCouncilTitle = (type: CouncilType) => {
     switch (type) {
@@ -215,34 +217,17 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
              </button>
            </div>
 
-           {viewMode === 'GRID' && (
-              <button 
-                onClick={() => setShowAddForm(true)}
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2 rounded-lg hover:from-indigo-700 hover:to-purple-700 flex items-center gap-2 text-sm font-bold shadow-md"
-              >
-                <Plus size={18} /> নতুন সদস্য
-              </button>
-           )}
-
            {viewMode === 'PRINT' && (
               <>
-                 <button 
-                  onClick={() => downloadAsImage('member-list-doc', `Member_List_${activeTab}`)}
-                  className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-lg hover:bg-emerald-100 flex items-center gap-2"
-                  title="ছবি ডাউনলোড করুন"
-                >
-                  <ImageIcon size={18} />
-                </button>
-                <button 
-                  onClick={() => downloadAsPDF('member-list-doc', `Member_List_${activeTab}`)}
-                  className="bg-rose-50 text-rose-700 border border-rose-200 px-3 py-2 rounded-lg hover:bg-rose-100 flex items-center gap-2"
-                  title="পিডিএফ ডাউনলোড করুন"
-                >
-                  <FileDown size={18} />
-                </button>
+                 <DownloadDropdown 
+                   targetRef={printRef} 
+                   fileNamePrefix={`Member_List_${activeTab}`} 
+                   settings={settings} 
+                   logoUrl={logoUrl || null} 
+                 />
                  <button 
                   onClick={() => window.print()}
-                  className="bg-slate-800 text-white px-3 py-2 rounded-lg hover:bg-slate-900 flex items-center gap-2"
+                  className="bg-slate-800 text-white px-3 py-2 rounded-lg hover:bg-slate-900 flex items-center gap-2 shadow-sm"
                   title="প্রিন্ট করুন"
                 >
                   <Printer size={18} />
@@ -277,12 +262,16 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
         {/* === GRID VIEW (Interactive) === */}
         {viewMode === 'GRID' && (
           <div className="p-6">
-            {showAddForm && (
+            {showForm && (
               <div className="mb-8 bg-white p-8 rounded-2xl shadow-xl border border-indigo-100 animate-fade-in relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-indigo-500 to-purple-500"></div>
-                <h3 className="font-bold text-xl mb-6 text-indigo-900 flex items-center gap-2">
-                  <User className="text-purple-600" /> নতুন সদস্যের তথ্য যুক্ত করুন
-                </h3>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="font-bold text-xl text-indigo-900 flex items-center gap-2">
+                    <User className="text-purple-600" />
+                    {editingMemberId ? 'সদস্যের তথ্য সম্পাদনা করুন' : 'নতুন সদস্যের তথ্য যুক্ত করুন'}
+                  </h3>
+                  <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-slate-600 font-bold p-2">✕</button>
+                </div>
                 
                 <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Image Upload Field */}
@@ -387,7 +376,7 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
                   <div className="col-span-1 md:col-span-2 flex justify-end gap-3 mt-4 pt-4 border-t border-indigo-50">
                     <button 
                       type="button" 
-                      onClick={() => setShowAddForm(false)} 
+                      onClick={() => { setShowForm(false); setEditingMemberId(null); }} 
                       className="px-6 py-2.5 text-slate-600 hover:bg-slate-100 rounded-lg font-medium transition-colors"
                     >
                       বাতিল
@@ -396,7 +385,7 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
                       type="submit" 
                       className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 font-bold shadow-lg transform active:scale-95 transition-all"
                     >
-                      সংরক্ষণ করুন
+                      {editingMemberId ? 'আপডেট করুন' : 'সংরক্ষণ করুন'}
                     </button>
                   </div>
                 </form>
@@ -496,9 +485,9 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                    <button onClick={() => handleDownloadCard(member)} className="bg-white text-indigo-600 p-2 rounded-full shadow-md hover:bg-indigo-50 border border-indigo-100 transition-colors" title="কার্ড ডাউনলোড করুন">
-                      <ImageIcon size={16} />
+                  <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 no-print">
+                    <button onClick={() => handleEditMember(member)} className="bg-white text-emerald-600 p-2 rounded-full shadow-md hover:bg-emerald-50 border border-emerald-100 transition-colors" title="সম্পাদনা করুন">
+                      <span className="flex items-center justify-center w-4 h-4 text-xs font-bold leading-none">✎</span>
                     </button>
                     <button onClick={() => onDeleteMember(member.id)} className="bg-white text-rose-500 p-2 rounded-full shadow-md hover:bg-rose-50 border border-rose-100 transition-colors" title="মুছে ফেলুন">
                       <Trash2 size={16} />
@@ -511,7 +500,6 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
                 <div className="col-span-full flex flex-col items-center justify-center py-16 text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-300">
                   <User size={48} className="mb-4 text-slate-300" />
                   <p className="text-lg font-medium text-slate-500">কোন সদস্য পাওয়া যায়নি</p>
-                  <p className="text-sm">নতুন সদস্য যোগ করতে উপরের বাটনে ক্লিক করুন</p>
                 </div>
               )}
             </div>
@@ -520,92 +508,127 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
 
         {/* === PRINT/REPORT VIEW (A4 Table) === */}
         {viewMode === 'PRINT' && (
-          <div className="a4-wrapper">
-             <div id="member-list-doc" className="a4-paper flex flex-col relative">
-                {logoUrl && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-                    <img src={logoUrl} alt="Watermark" className="w-[500px] opacity-[0.06] grayscale" />
-                  </div>
-                )}
+          <div className="a4-wrapper" ref={printRef}>
+              {(() => {
+                const ROWS_PER_PAGE = 15;
+                const chunks = [];
+                let remaining = [...filteredMembers];
                 
-                <DocumentHeader logoUrl={logoUrl} />
+                while (remaining.length > 0) {
+                  chunks.push(remaining.splice(0, ROWS_PER_PAGE));
+                }
+                
+                if (chunks.length === 0) {
+                   chunks.push([]);
+                }
 
-                <div className="relative z-10 flex-1">
-                  <div className="text-center mb-6">
-                    <span className="bg-slate-900 text-white px-8 py-2 rounded-full border border-slate-800 font-bold text-lg uppercase tracking-wider shadow-sm">
-                      {getCouncilTitle(activeTab)}
-                    </span>
-                  </div>
+                return chunks.map((chunk, pageIndex) => (
+                  <div key={pageIndex} className="a4-paper flex flex-col relative" style={{ marginBottom: pageIndex < chunks.length - 1 ? '20px' : '0' }}>
+                    {logoUrl && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+                        <img src={logoUrl} alt="Watermark" className="w-[500px] opacity-[0.06] grayscale" />
+                      </div>
+                    )}
+                    
+                    {/* Header on Every Page */}
+                    <DocumentHeader logoUrl={logoUrl} settings={settings} />
 
-                  <table className="w-full text-sm text-left border-collapse border border-slate-300">
-                    <thead>
-                      <tr className="bg-slate-100">
-                        <th className="border border-slate-300 p-2 w-10 text-center">নং</th>
-                        <th className="border border-slate-300 p-2 w-16 text-center">ছবি</th>
-                        <th className="border border-slate-300 p-2">নাম</th>
-                        <th className="border border-slate-300 p-2">পদবী/ধরন</th>
-                        <th className="border border-slate-300 p-2">মোবাইল</th>
-                        <th className="border border-slate-300 p-2 text-center">রক্ত</th>
-                        <th className="border border-slate-300 p-2">ঠিকানা</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredMembers.map((member, index) => (
-                        <tr key={member.id} className="even:bg-slate-50/50">
-                          <td className="border border-slate-300 p-2 text-center">{index + 1}</td>
-                          <td className="border border-slate-300 p-1 text-center align-middle">
-                            <div className="flex flex-col items-center gap-1">
-                              {member.profileImage ? (
-                                 <img src={member.profileImage} alt="" className="w-10 h-10 rounded-full object-cover border border-slate-200" />
-                              ) : (
-                                 <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-                                   <User size={16} />
-                                 </div>
-                              )}
-                              
-                              {/* Photo Upload Button for EXECUTIVE Only */}
-                              {activeTab === 'EXECUTIVE' && (
-                                <button 
-                                  onClick={() => triggerTableUpload(member.id)}
-                                  className="text-[10px] bg-slate-200 hover:bg-slate-300 px-1.5 py-0.5 rounded text-slate-600 flex items-center gap-1 no-print"
-                                  title="ছবি পরিবর্তন করুন"
-                                >
-                                  <Camera size={10} /> ছবি
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                          <td className="border border-slate-300 p-2 font-bold text-slate-800">{member.name}</td>
-                          <td className="border border-slate-300 p-2">
-                            {member.designation || (member.council === 'GENERAL' ? 'সাধারণ সদস্য' : 'সদস্য')}
-                          </td>
-                          <td className="border border-slate-300 p-2 font-mono">{member.phone}</td>
-                          <td className="border border-slate-300 p-2 text-center font-bold text-rose-600">{member.bloodGroup || '-'}</td>
-                          <td className="border border-slate-300 p-2">{member.address || '-'}</td>
-                        </tr>
-                      ))}
-                      {filteredMembers.length === 0 && (
-                        <tr>
-                          <td colSpan={7} className="text-center p-8 text-slate-400 italic border border-slate-300">
-                            এই তালিকায় কোন সদস্য নেই
-                          </td>
-                        </tr>
+                    <div className="relative z-10 flex-1 flex flex-col">
+                      <div className="text-center mb-6">
+                        <span className="bg-slate-900 text-white px-8 py-2 rounded-full border border-slate-800 font-bold text-lg uppercase tracking-wider shadow-sm">
+                          {getCouncilTitle(activeTab)}
+                        </span>
+                      </div>
+
+                      <table className="w-full text-sm text-left border-collapse border border-slate-300">
+                        <thead>
+                          <tr className="bg-slate-100">
+                            <th className="border border-slate-300 p-2 w-10 text-center">নং</th>
+                            <th className="border border-slate-300 p-2 w-16 text-center">ছবি</th>
+                            <th className="border border-slate-300 p-2">নাম</th>
+                            <th className="border border-slate-300 p-2">পদবী/ধরন</th>
+                            <th className="border border-slate-300 p-2">মোবাইল</th>
+                            <th className="border border-slate-300 p-2 text-center">রক্ত</th>
+                            <th className="border border-slate-300 p-2">ঠিকানা</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {chunk.map((member, index) => {
+                            const globalIndex = index + 1 + (pageIndex * ROWS_PER_PAGE);
+
+                            return (
+                              <tr key={member.id} className="even:bg-slate-50/50">
+                                <td className="border border-slate-300 p-2 text-center">{globalIndex}</td>
+                                <td className="border border-slate-300 p-1 text-center align-middle">
+                                  <div className="flex flex-col items-center gap-1">
+                                    {member.profileImage ? (
+                                      <img src={member.profileImage} alt="" className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+                                    ) : (
+                                      <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
+                                        <User size={16} />
+                                      </div>
+                                    )}
+                                    
+                                    {/* Action Buttons */}
+                                    <div className="flex flex-col items-center gap-1 mt-1 no-print">
+                                      <button 
+                                        onClick={() => triggerTableUpload(member.id)}
+                                        className="text-[10px] bg-slate-200 hover:bg-slate-300 px-1.5 py-0.5 rounded text-slate-600 flex items-center gap-1"
+                                        title="ছবি পরিবর্তন করুন"
+                                      >
+                                        <Camera size={10} /> ছবি
+                                      </button>
+                                      <button 
+                                        onClick={() => handleEditMember(member)}
+                                        className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1"
+                                        title="সম্পাদনা করুন"
+                                      >
+                                        <span className="font-bold">✎</span> এডিট
+                                      </button>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="border border-slate-300 p-2 font-bold text-slate-800">{member.name}</td>
+                                <td className="border border-slate-300 p-2">
+                                  {member.designation || (member.council === 'GENERAL' ? 'সাধারণ সদস্য' : 'সদস্য')}
+                                </td>
+                                <td className="border border-slate-300 p-2 font-mono">{member.phone}</td>
+                                <td className="border border-slate-300 p-2 text-center font-bold text-rose-600">{member.bloodGroup || '-'}</td>
+                                <td className="border border-slate-300 p-2">{member.address || '-'}</td>
+                              </tr>
+                            );
+                          })}
+                          {chunk.length === 0 && (
+                            <tr>
+                              <td colSpan={7} className="text-center p-8 text-slate-400 italic border border-slate-300">
+                                এই তালিকায় কোন সদস্য নেই
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="relative z-10 mt-auto pt-10 flex flex-col">
+                      {/* Signatures only on the LAST page */}
+                      {pageIndex === chunks.length - 1 && (
+                        <div className="flex justify-between text-sm font-semibold mb-8">
+                          <div className="text-center w-32 border-t border-slate-400 pt-2">
+                              সভাপতি
+                          </div>
+                          <div className="text-center w-32 border-t border-slate-400 pt-2">
+                              সাধারণ সম্পাদক
+                          </div>
+                        </div>
                       )}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="relative z-10 mt-auto pt-16 border-t border-slate-400 flex justify-between text-sm font-semibold">
-                  <div className="text-center w-32">
-                      <div className="border-b border-slate-800 mb-1"></div>
-                      সভাপতি
+                      
+                      <div className="border-t border-slate-300 pt-4 text-center text-xs text-slate-500 font-medium">
+                        পৃষ্ঠা {pageIndex + 1} / {chunks.length}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-center w-32">
-                      <div className="border-b border-slate-800 mb-1"></div>
-                      সাধারণ সম্পাদক
-                  </div>
-                </div>
-             </div>
+                ));
+              })()}
           </div>
         )}
 

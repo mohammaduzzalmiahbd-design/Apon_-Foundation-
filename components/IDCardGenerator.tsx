@@ -1,57 +1,68 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Image as ImageIcon, FileDown, User, Phone, CreditCard, Droplet, Calendar, MapPin, ZoomIn, Move, RotateCcw } from 'lucide-react';
-import { Member } from '../types';
-import { downloadAsImage, downloadAsPDF } from '../utils/downloadUtils';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Image as ImageIcon, CreditCard, Droplet, User, Phone, Calendar, CheckSquare, Square, Download, Trash2, LayoutGrid, X } from 'lucide-react';
+import { Member, AppSettings } from '../types';
 import QRCode from 'qrcode';
+import { DownloadDropdown } from './DownloadDropdown';
 
 interface Props {
   members: Member[];
   logoUrl: string | null;
+  settings: AppSettings;
 }
 
-export const IDCardGenerator: React.FC<Props> = ({ members, logoUrl }) => {
+export const IDCardGenerator: React.FC<Props> = ({ members, logoUrl, settings }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedMember, setSelectedMember] = useState<Member | null>(null);
-  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [qrCodes, setQrCodes] = useState<Record<string, string>>({});
+  const gridRef = useRef<HTMLDivElement>(null);
 
-  // Image adjustment states
-  const [imgScale, setImgScale] = useState<number>(1);
-  const [imgPos, setImgPos] = useState<{x: number, y: number}>({ x: 0, y: 0 });
+  // Filter members
+  const filteredMembers = members.filter(m => 
+    m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    m.phone.includes(searchTerm) ||
+    (m.nid && m.nid.includes(searchTerm))
+  );
 
-  // Filter members based on search
-  const filteredMembers = searchTerm.trim() 
-    ? members.filter(m => 
-        m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        m.phone.includes(searchTerm) ||
-        (m.nid && m.nid.includes(searchTerm))
-      )
-    : [];
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
 
-  // Generate QR Code and Reset Image Settings when member is selected
+  const selectAll = () => {
+    const allFilteredIds = filteredMembers.map(m => m.id);
+    setSelectedIds(allFilteredIds);
+  };
+
+  const clearSelection = () => setSelectedIds([]);
+
+  // Generate QR Codes for selected members
   useEffect(() => {
-    if (selectedMember) {
-      // Reset image adjustments
-      setImgScale(1);
-      setImgPos({ x: 0, y: 0 });
-
-      const qrData = `Name: ${selectedMember.name}\nPhone: ${selectedMember.phone}\nRole: ${selectedMember.designation || (selectedMember.council === 'GENERAL' ? 'General Member' : 'Member')}`;
-      
-      QRCode.toDataURL(qrData, { 
-        width: 150,
-        margin: 1,
-        color: {
-          dark: '#4f46e5', // Indigo-600
-          light: '#ffffff'
+    const generateQRs = async () => {
+      const newQRs: Record<string, string> = { ...qrCodes };
+      for (const id of selectedIds) {
+        if (!newQRs[id]) {
+          const m = members.find(member => member.id === id);
+          if (m) {
+            const qrData = `Name: ${m.name}\nID: ${m.id}\nPhone: ${m.phone}`;
+            try {
+              const url = await QRCode.toDataURL(qrData, { 
+                width: 100, 
+                margin: 1,
+                color: { dark: '#143d27', light: '#ffffff' }
+              });
+              newQRs[id] = url;
+            } catch (err) {
+              console.error(err);
+            }
+          }
         }
-      })
-      .then(url => setQrCodeUrl(url))
-      .catch(err => console.error('QR Gen Error:', err));
-    } else {
-      setQrCodeUrl('');
-    }
-  }, [selectedMember]);
+      }
+      setQrCodes(newQRs);
+    };
+    generateQRs();
+  }, [selectedIds, members]);
 
-  // Helper to convert English digits to Bengali
   const toBengali = (str: string | undefined) => {
     if (!str) return '';
     const english = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -62,319 +73,230 @@ export const IDCardGenerator: React.FC<Props> = ({ members, logoUrl }) => {
     }).join('');
   };
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-20">
-      
-      {/* Search & Selection Sidebar */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-fit no-print">
-        <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-          <Search className="text-blue-600" /> সদস্য নির্বাচন করুন
-        </h2>
+  const selectedMembers = members.filter(m => selectedIds.includes(m.id));
 
-        <div className="mb-6 relative">
+  // Single Card Component (ID-1 Standard: 54mm x 85.6mm)
+  const IDCard = ({ member }: { member: Member, key?: any }) => (
+    <div 
+      className="card-item bg-white shadow-xl overflow-hidden relative border border-slate-300"
+      style={{ 
+        width: '54mm', 
+        height: '85.6mm', 
+        borderRadius: '3mm',
+        background: 'linear-gradient(145deg, #091220 0%, #1c0f4f 40%, #0d381c 80%, #05140b 100%)', // Corporate dark gradient with deep greens/blues
+        boxSizing: 'border-box'
+      }}
+    >
+      {/* Lanyard Slot area (Visual only) */}
+      <div className="absolute top-[2mm] left-1/2 -translate-x-1/2 w-[10mm] h-[1.2mm] bg-black/40 rounded-full z-20"></div>
+
+      {/* Content wrapper */}
+      <div className="relative z-10 h-full flex flex-col pt-[1mm]">
+        
+        {/* Header - Circular Logo + Balanced Text */}
+        <div className="flex items-center gap-[2mm] px-[2.5mm] py-[1mm] mb-[0.5mm] bg-white/95 shadow-sm">
+          <div className="w-[11mm] h-[11mm] bg-white rounded-full shrink-0 flex items-center justify-center p-[0.6mm] border border-slate-200">
+             {logoUrl ? (
+               <img src={logoUrl} className="w-full h-full object-contain rounded-full" referrerPolicy="no-referrer" />
+             ) : (
+               <div className="w-full h-full bg-slate-100 rounded-full flex items-center justify-center text-[3px] text-slate-400 uppercase">Logo</div>
+             )}
+          </div>
+          <div className="flex flex-col flex-1 leading-[1]">
+            <h2 className="text-[14px] font-bold font-bengali tracking-tight transform translate-y-[-1.2mm]">
+              <span className="text-[#143d27]">আপন</span> <span className="text-[#991b1b]">ফাউন্ডেশন</span>
+            </h2>
+            <p className="text-[7px] text-slate-600 font-bold font-bengali leading-none">বালীগাঁও, অষ্টগ্রাম, কিশোরগঞ্জ</p>
+          </div>
+        </div>
+
+        {/* Profile Photo (Circular 16mm) - Centered Exactly above Name */}
+        <div className="flex justify-center -mt-[0.5mm] mb-[0.2mm]">
+          <div className="w-[16mm] h-[16mm] bg-slate-800 border-[1.2mm] border-white/50 rounded-full overflow-hidden shadow-xl ring-2 ring-black/10">
+            {member.profileImage ? (
+              <img src={member.profileImage} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 bg-slate-200">
+                <User size={13} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Member Identity - Visual Hierarchy */}
+        <div className="text-center px-[2mm] mb-[1mm] transform translate-y-[-2mm]">
+          <h3 className="text-[16px] font-black text-white font-bengali leading-[1.1] mb-[0.5mm] drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">{member.name}</h3>
+          <div className="inline-flex items-center gap-1.5 bg-green-500/25 border border-green-500/40 px-3 py-0.5 rounded-full mb-[0.8mm]">
+            <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse"></span>
+            <p className="text-[10px] font-bold text-green-400 font-mono tracking-widest leading-none transform translate-y-[-1.5px]">ID: {toBengali(member.id.slice(-5))}</p>
+          </div>
+          <p className="text-[10px] text-slate-300 font-bold font-bengali uppercase tracking-wider block leading-none opacity-90">
+            {member.designation || (member.council === 'GENERAL' ? 'সাধারণ সদস্য' : 'সদস্য')}
+          </p>
+        </div>
+
+        {/* Info Grid - Boxed Layout (10px-11px font per request) */}
+        <div className="px-[3mm] grid grid-cols-2 gap-[1.5mm] mb-[1.2mm]">
+          <div className="bg-black/30 border border-white/10 p-[1mm] rounded-lg flex flex-col items-center justify-center min-h-[10mm] text-center overflow-hidden">
+            <span className="text-[5.5px] text-slate-500 font-bold uppercase leading-none mb-1 tracking-tighter transform translate-y-[-2.5px]">রক্তের গ্রুপ</span>
+            <div className="flex items-center justify-center">
+              <span className="text-[11px] font-black text-red-500 leading-none drop-shadow-sm transform translate-y-[-1.5px]">{member.bloodGroup || 'N/A'}</span>
+            </div>
+          </div>
+          <div className="bg-black/30 border border-white/10 p-[1mm] rounded-lg flex flex-col items-center justify-center min-h-[10mm] text-center overflow-hidden">
+             <span className="text-[5.5px] text-slate-500 font-bold uppercase leading-none mb-1 tracking-tighter transform translate-y-[-2.5px]">যোগদানকাল</span>
+             <div className="flex items-center justify-center">
+               <span className="text-[11px] font-bold text-slate-200 leading-none font-bengali transform translate-y-[-1.5px]">{toBengali(member.joinDate)}</span>
+             </div>
+          </div>
+        </div>
+
+        {/* Middle Mobile Box */}
+        <div className="px-[3mm] mb-[2mm]">
+          <div className="bg-black/40 border border-white/10 h-[8mm] px-3 rounded-lg flex items-center justify-center gap-2 overflow-hidden">
+            <Phone size={10} className="text-green-500 shrink-0" />
+            <p className="text-[11px] text-slate-100 font-bold font-mono tracking-widest leading-none transform translate-y-[-2mm]">{toBengali(member.phone)}</p>
+          </div>
+        </div>
+
+        {/* Footer Area - Shifts everything up via mt-auto, ensuring 4mm margin */}
+        <div className="mt-auto px-[3.5mm] pb-[4mm]">
+          <div className="flex justify-between items-end mb-1.5">
+            {/* Signature Area */}
+            <div className="flex flex-col items-center">
+               <div className="w-[20mm] border-t border-dashed border-slate-500/60"></div>
+               <p className="text-[6px] text-slate-500 uppercase font-bold tracking-widest mt-1 whitespace-nowrap">Authorized Signature</p>
+            </div>
+
+            {/* QR Code */}
+            <div className="bg-white p-[0.8mm] rounded shadow-lg border border-slate-300 ring-2 ring-black/5">
+               {qrCodes[member.id] && <img src={qrCodes[member.id]} className="w-[10mm] h-[10mm]" referrerPolicy="no-referrer" />}
+            </div>
+          </div>
+
+          <p className="text-[5px] text-[#808080] font-medium font-bengali text-center leading-tight opacity-90 uppercase tracking-tight">
+            ID card generated by Apon Foundation management system
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6 pb-20">
+      
+      {/* Filters and Selection Control */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 no-print">
+        <div className="md:col-span-2 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             type="text"
-            placeholder="নাম, ফোন বা NID..."
-            className="w-full p-3 pl-10 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            placeholder="নাম, ফোন বা আইডি দিয়ে খুঁজুন..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
           />
-          <Search className="absolute left-3 top-3.5 text-slate-400" size={18} />
         </div>
-
-        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-          {filteredMembers.map(member => (
-            <button
-              key={member.id}
-              onClick={() => setSelectedMember(member)}
-              className={`w-full text-left p-3 rounded-lg border transition-all flex items-center gap-3 ${
-                selectedMember?.id === member.id
-                  ? 'bg-blue-50 border-blue-500 ring-1 ring-blue-500 shadow-sm'
-                  : 'border-slate-100 hover:bg-slate-50'
-              }`}
-            >
-              <div className="w-10 h-10 rounded-full bg-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center border border-slate-300">
-                {member.profileImage ? (
-                  <img src={member.profileImage} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <User size={16} className="text-slate-400" />
-                )}
-              </div>
-              <div className="min-w-0">
-                <p className="font-bold text-slate-800 text-sm truncate">{member.name}</p>
-                <p className="text-xs text-slate-500 truncate">
-                  {member.designation || (member.council === 'GENERAL' ? 'সাধারণ সদস্য' : 'সদস্য')}
-                </p>
-              </div>
-            </button>
-          ))}
-          
-          {searchTerm && filteredMembers.length === 0 && (
-            <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-               <User size={32} className="mx-auto mb-2 opacity-50" />
-               <p className="text-sm">কোন সদস্য পাওয়া যায়নি</p>
-            </div>
-          )}
-          
-          {!searchTerm && (
-            <div className="text-center py-8 text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
-              <Search size={32} className="mx-auto mb-2 opacity-50" />
-              <p className="text-sm">অনুসন্ধান করতে টাইপ করুন...</p>
-            </div>
-          )}
+        <div className="flex items-center gap-2">
+           <button onClick={selectAll} className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-slate-700 transition-colors">সকলকে নির্বাচন</button>
+           <button onClick={clearSelection} className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-xs font-bold text-red-600 transition-colors"><Trash2 size={16}/></button>
         </div>
-
-        {selectedMember && (
-          <div className="mt-6 pt-6 border-t border-slate-200 flex flex-col gap-4">
-             {/* Image Adjustment Controls */}
-             <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                <div className="flex justify-between items-center mb-3">
-                   <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
-                     <ImageIcon size={14} className="text-blue-600" /> ছবির মাপ ঠিক করুন
-                   </h3>
-                   <button 
-                      onClick={() => { setImgScale(1); setImgPos({x:0, y:0}); }}
-                      className="text-[10px] text-slate-500 flex items-center gap-1 hover:text-red-500 transition-colors bg-white px-2 py-1 rounded border border-slate-200"
-                      title="রিসেট করুন"
-                   >
-                     <RotateCcw size={10} /> রিসেট
-                   </button>
-                </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex justify-between text-[10px] text-slate-500 mb-1 font-medium">
-                       <span className="flex items-center gap-1"><ZoomIn size={10} /> জুম (Zoom)</span>
-                       <span>{Math.round(imgScale * 100)}%</span>
-                    </div>
-                    <input 
-                      type="range" min="1" max="3" step="0.1" 
-                      value={imgScale} onChange={(e) => setImgScale(parseFloat(e.target.value))}
-                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                        <div className="flex justify-between text-[10px] text-slate-500 mb-1 font-medium">
-                           <span className="flex items-center gap-1"><Move size={10} /> ডানে/বামে</span>
-                        </div>
-                        <input 
-                          type="range" min="-80" max="80" 
-                          value={imgPos.x} onChange={(e) => setImgPos({...imgPos, x: parseInt(e.target.value)})}
-                          className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                        />
-                    </div>
-                    <div>
-                        <div className="flex justify-between text-[10px] text-slate-500 mb-1 font-medium">
-                           <span className="flex items-center gap-1"><Move size={10} className="rotate-90" /> উপরে/নিচে</span>
-                        </div>
-                        <input 
-                          type="range" min="-80" max="80" 
-                          value={imgPos.y} onChange={(e) => setImgPos({...imgPos, y: parseInt(e.target.value)})}
-                          className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                        />
-                    </div>
-                  </div>
-                </div>
-             </div>
-
-             <h3 className="font-bold text-slate-700 text-sm">ডাউনলোড অপশন</h3>
-             <div className="grid grid-cols-2 gap-3">
-                <button 
-                  onClick={() => downloadAsImage('id-card-preview', `ID_${selectedMember.name}`)}
-                  className="bg-emerald-50 text-emerald-700 border border-emerald-200 py-2.5 rounded-lg hover:bg-emerald-100 font-medium flex items-center justify-center gap-2 transition-colors text-sm"
-                >
-                  <ImageIcon size={16} /> ছবি
-                </button>
-                <button 
-                  onClick={() => downloadAsPDF('id-card-preview', `ID_${selectedMember.name}`)}
-                  className="bg-rose-50 text-rose-700 border border-rose-200 py-2.5 rounded-lg hover:bg-rose-100 font-medium flex items-center justify-center gap-2 transition-colors text-sm"
-                >
-                  <FileDown size={16} /> পিডিএফ
-                </button>
-             </div>
-             <p className="text-[10px] text-slate-400 text-center">
-               প্রিন্ট করার জন্য ছবিটি সেভ করে ল্যাবে নিয়ে যান।
-             </p>
-          </div>
-        )}
+        <div className="flex justify-end">
+           {selectedIds.length > 0 && (
+             <DownloadDropdown 
+               targetRef={gridRef}
+               fileNamePrefix={`Apon_ID_Cards_${selectedIds.length}`}
+               settings={settings}
+               logoUrl={logoUrl}
+             />
+           )}
+        </div>
       </div>
 
-      {/* Preview Area */}
-      <div className="lg:col-span-2 flex justify-center bg-slate-100 p-8 rounded-xl items-center min-h-[750px] border border-slate-200 relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#475569 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+      <div className="flex flex-col lg:flex-row gap-8">
+        
+        {/* Member Select List */}
+        <div className="w-full lg:w-80 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden no-print">
+          <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex justify-between items-center">
+            <h3 className="font-bold text-slate-700 text-sm">সদস্য তালিকা ({filteredMembers.length})</h3>
+            <span className="bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded-full">{selectedIds.length} নির্বাচিত</span>
+          </div>
+          <div className="max-h-[600px] overflow-y-auto p-2 space-y-1 custom-scrollbar">
+            {filteredMembers.map(member => {
+              const isSelected = selectedIds.includes(member.id);
+              return (
+                <button
+                  key={member.id}
+                  onClick={() => toggleSelect(member.id)}
+                  className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all text-left border ${isSelected ? 'bg-indigo-50 border-indigo-200' : 'border-transparent hover:bg-slate-50'}`}
+                >
+                  <div className={`shrink-0 ${isSelected ? 'text-indigo-600' : 'text-slate-300'}`}>
+                    {isSelected ? <CheckSquare size={20} /> : <Square size={20} />}
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden shrink-0 border border-slate-300">
+                    {member.profileImage ? <img src={member.profileImage} className="w-full h-full object-cover" /> : <User className="w-full h-full p-1.5 text-slate-400" />}
+                  </div>
+                  <div className="min-w-0">
+                    <p className={`text-xs font-bold truncate ${isSelected ? 'text-indigo-900' : 'text-slate-800'}`}>{member.name}</p>
+                    <p className="text-[10px] text-slate-500 truncate">{toBengali(member.phone)}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-        {selectedMember ? (
-          <div className="transform transition-transform hover:scale-[1.02] duration-300">
-            
-            {/* --- NEW INFOGRAPHIC MULTI-COLOR ID CARD --- */}
+        {/* Live Grid Preview */}
+        <div className="flex-1 bg-slate-200 p-8 rounded-2xl border border-slate-300 overflow-auto min-h-[600px]">
+          <div className="flex flex-col items-center gap-4 mb-4 no-print text-slate-500 italic text-sm">
+             <LayoutGrid size={24} />
+             <span>প্রিভিউ: A4 পৃষ্ঠায় কার্ডগুলোর সজ্জা</span>
+          </div>
+
+          <div className="flex justify-center">
+            {/* The printable A4 Container */}
             <div 
-              id="id-card-preview" 
-              className="relative bg-white w-[350px] h-[620px] shadow-2xl overflow-hidden flex flex-col rounded-[2rem] border-4 border-white font-sans"
+              ref={gridRef}
+              className="a4-grid-container bg-white shadow-2xl relative overflow-hidden"
+              style={{
+                width: '210mm',
+                minHeight: '297mm',
+                padding: '10mm',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 54mm)',
+                gridAutoRows: '85.6mm',
+                gap: '5mm',
+                justifyContent: 'center',
+                alignContent: 'start',
+                backgroundColor: 'white'
+              }}
             >
-               {/* Decorative Background Blobs */}
-               <div className="absolute top-0 right-0 w-48 h-48 bg-purple-100 rounded-full mix-blend-multiply filter blur-2xl opacity-70"></div>
-               <div className="absolute top-0 left-0 w-48 h-48 bg-cyan-100 rounded-full mix-blend-multiply filter blur-2xl opacity-70"></div>
-               <div className="absolute bottom-0 right-0 w-64 h-64 bg-orange-100 rounded-full mix-blend-multiply filter blur-3xl opacity-60"></div>
+              {/* Dummy header/footer to block DownloadDropdown from injecting global ones */}
+              <div className="document-header hidden"></div>
+              <div className="document-footer hidden"></div>
 
-               {/* Watermark */}
-               {logoUrl && (
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 opacity-[0.05]">
-                    <img src={logoUrl} alt="" className="w-72 grayscale" />
-                  </div>
-               )}
-
-               {/* HEADER SECTION - Organic Shape - Content adjusted up */}
-               <div className="relative h-40 bg-slate-50 rounded-b-[40px] overflow-hidden shrink-0 z-10 shadow-sm border-b border-slate-100">
-                  {/* Colorful Gradients overlays */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50"></div>
-                  <div className="absolute bottom-0 left-0 right-0 h-full w-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-                  
-                  {/* Top Content */}
-                  <div className="relative z-20 flex flex-col items-center pt-3 px-4">
-                      {/* Logo Area - Slightly smaller */}
-                      <div className="w-12 h-12 bg-white rounded-full p-1 shadow-md mb-1 flex items-center justify-center border border-emerald-100">
-                          {logoUrl ? (
-                              <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
-                          ) : (
-                              <div className="text-[10px] text-center text-slate-400 font-bold">Logo</div>
-                          )}
-                      </div>
-                      
-                      {/* Organization Name - Adjusted Spacing */}
-                      <h1 className="text-xl font-black text-center leading-none tracking-tight drop-shadow-sm mb-1">
-                        <span className="text-emerald-600">আপন</span> <span className="text-orange-500">ফাউন্ডেশন</span>
-                      </h1>
-                      <p className="text-[9px] text-slate-500 font-bold tracking-widest uppercase">স্থাপিত: ২০২৪</p>
-                  </div>
-               </div>
-
-               {/* PROFILE PHOTO - Floating over header - Adjusted to not overlap text */}
-               <div className="relative z-20 -mt-12 flex justify-center mb-2">
-                  <div className="p-1.5 rounded-full bg-white shadow-xl ring-1 ring-slate-100">
-                      <div className="w-28 h-28 rounded-full border-4 border-slate-50 overflow-hidden bg-slate-200 flex items-center justify-center relative">
-                          {selectedMember.profileImage ? (
-                            <img 
-                              src={selectedMember.profileImage} 
-                              alt={selectedMember.name} 
-                              className="w-full h-full object-cover transition-transform duration-75"
-                              style={{
-                                transform: `scale(${imgScale}) translate(${imgPos.x}px, ${imgPos.y}px)`,
-                                transformOrigin: 'center'
-                              }}
-                            />
-                          ) : (
-                          <User size={40} className="text-slate-300" />
-                          )}
-                      </div>
-                  </div>
-               </div>
-
-               {/* NAME & DESIGNATION */}
-               <div className="text-center relative z-10 px-4 mb-3">
-                  <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-purple-600 leading-tight mb-1">
-                    {selectedMember.name}
-                  </h2>
-                  <div className="inline-block bg-gradient-to-r from-orange-100 to-amber-100 px-4 py-1 rounded-full border border-orange-200 shadow-sm">
-                    <span className="text-xs font-bold text-orange-700 uppercase tracking-wider">
-                      {selectedMember.designation || (selectedMember.council === 'GENERAL' ? 'সাধারণ সদস্য' : 'সদস্য')}
-                    </span>
-                  </div>
-               </div>
-
-               {/* INFOGRAPHIC DATA GRID - Colorful Boxes */}
-               <div className="px-5 mb-3 relative z-10 grid grid-cols-2 gap-3">
-                  
-                  {/* ID Box */}
-                  <div className="bg-cyan-50 border border-cyan-100 p-2.5 rounded-xl flex flex-col items-center justify-center text-center shadow-sm">
-                     <div className="bg-white p-1.5 rounded-full text-cyan-500 mb-1 shadow-sm">
-                        <CreditCard size={14} />
-                     </div>
-                     <span className="text-[9px] font-bold text-cyan-400 uppercase tracking-wider">আইডি নং</span>
-                     <span className="text-sm font-bold text-cyan-800 font-mono">
-                       {toBengali(selectedMember.nid?.slice(-6) || 'N/A')}
-                     </span>
-                  </div>
-
-                  {/* Phone Box */}
-                  <div className="bg-violet-50 border border-violet-100 p-2.5 rounded-xl flex flex-col items-center justify-center text-center shadow-sm">
-                     <div className="bg-white p-1.5 rounded-full text-violet-500 mb-1 shadow-sm">
-                        <Phone size={14} />
-                     </div>
-                     <span className="text-[9px] font-bold text-violet-400 uppercase tracking-wider">মোবাইল</span>
-                     <span className="text-sm font-bold text-violet-800 font-mono">
-                       {toBengali(selectedMember.phone)}
-                     </span>
-                  </div>
-
-                  {/* Blood Group Box */}
-                  <div className="bg-rose-50 border border-rose-100 p-2.5 rounded-xl flex flex-col items-center justify-center text-center shadow-sm">
-                     <div className="bg-white p-1.5 rounded-full text-rose-500 mb-1 shadow-sm">
-                        <Droplet size={14} />
-                     </div>
-                     <span className="text-[9px] font-bold text-rose-400 uppercase tracking-wider">রক্তের গ্রুপ</span>
-                     <span className="text-sm font-bold text-rose-800">
-                       {selectedMember.bloodGroup || '-'}
-                     </span>
-                  </div>
-
-                  {/* Validity Box */}
-                  <div className="bg-emerald-50 border border-emerald-100 p-2.5 rounded-xl flex flex-col items-center justify-center text-center shadow-sm">
-                     <div className="bg-white p-1.5 rounded-full text-emerald-500 mb-1 shadow-sm">
-                        <Calendar size={14} />
-                     </div>
-                     <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-wider">মেয়াদ</span>
-                     <span className="text-sm font-bold text-emerald-800">
-                       ৩১/১২/২০২৫
-                     </span>
-                  </div>
-               </div>
-
-               {/* ADDRESS (Full Width) */}
-               <div className="px-5 mb-2 relative z-10">
-                  <div className="bg-slate-50 border border-slate-100 p-2 rounded-lg flex items-center gap-2 justify-center">
-                    <MapPin size={12} className="text-slate-400" />
-                    <span className="text-[10px] font-medium text-slate-600 ml-1">
-                      {selectedMember.address || 'বালিগাঁও, অষ্টগ্রাম, কিশোরগঞ্জ'}
-                    </span>
-                  </div>
-               </div>
-
-               {/* BOTTOM SECTION: QR & SIGNATURE */}
-               <div className="mt-auto px-6 pb-6 flex items-end justify-between relative z-10">
-                  {/* QR Code */}
-                  <div className="flex flex-col items-center bg-white p-1.5 rounded-lg shadow-md border border-indigo-100">
-                     {qrCodeUrl ? (
-                        <img src={qrCodeUrl} alt="QR" className="w-14 h-14" />
-                     ) : (
-                        <div className="w-14 h-14 bg-slate-100 animate-pulse rounded"></div>
-                     )}
-                  </div>
-
-                  {/* Signature Area */}
-                  <div className="flex flex-col items-center mb-1">
-                     <div className="w-28 h-8 mb-1">
-                        {/* Empty space for manual signature */}
-                     </div>
-                     <div className="w-32 border-t-2 border-dashed border-slate-400"></div>
-                     <p className="text-[10px] font-bold text-slate-500 mt-1 uppercase tracking-widest">কর্তৃপক্ষ</p>
-                  </div>
-               </div>
-
-               {/* Decorative Footer Line */}
-               <div className="h-2 w-full bg-gradient-to-r from-emerald-400 via-purple-400 to-orange-400"></div>
+              {selectedMembers.length > 0 ? (
+                selectedMembers.map(m => <IDCard key={m.id} member={m} />)
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300 pointer-events-none col-span-2">
+                  <CreditCard size={120} className="opacity-10 mb-4" />
+                  <p className="text-xl font-bold opacity-20">নির্বাচন করুন কার্ড জেনারেট হবে</p>
+                </div>
+              )}
             </div>
           </div>
-        ) : (
-          <div className="text-center text-slate-400">
-             <div className="w-64 h-96 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center bg-white/50">
-                <User size={64} className="mb-4 opacity-20" />
-                <p className="font-medium">কার্ড জেনারেট করতে<br/>বাম পাশ থেকে সদস্য নির্বাচন করুন</p>
-             </div>
-          </div>
-        )}
+        </div>
+      </div>
+      
+      {/* Instructions */}
+      <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 no-print">
+         <h4 className="font-bold text-blue-900 mb-2">প্রিন্টিং গাইড:</h4>
+         <ul className="text-sm text-blue-800 space-y-1 opacity-90 list-disc pl-5">
+           <li>একসাথে সর্বোচ্চ ৮-১০টি কার্ড একটি A4 পাতায় প্রিন্ট করা সম্ভব।</li>
+           <li>কার্ডগুলোর চারপাশে ৫ মিমি মার্জিন রাখা হয়েছে যেন কাটার সময় সুবিধা হয়।</li>
+           <li>সেরা রেজুলেশনের জন্য PDF ফাইল ডাউনলোড করে প্রিন্ট করুন।</li>
+           <li>ISO/IEC 7810 ID-1 স্ট্যান্ডার্ড (৫৪মিমি × ৮৫.৬মিমি) ব্যবহার করা হয়েছে।</li>
+         </ul>
       </div>
     </div>
   );

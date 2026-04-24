@@ -1,5 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, Users, BookOpen, Wallet, Upload, Menu, X, Save, DownloadCloud, UploadCloud, AlertTriangle, CheckCircle, PieChart, Bell, Smartphone, FileText, Link as LinkIcon, RefreshCw, Database, Globe, Code, Copy, Eye, EyeOff, ExternalLink, ArrowRight, Search, Home, ClipboardList, FileDown, CreditCard, GitMerge, Droplet } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { 
+  LayoutDashboard, Users, BookOpen, Banknote, Upload, Menu, X, Save, 
+  DownloadCloud, UploadCloud, AlertTriangle, CheckCircle, PieChart, 
+  Bell, Smartphone, FileText, Link as LinkIcon, RefreshCw, Database, 
+  Globe, Code, Copy, Eye, EyeOff, ExternalLink, ArrowRight, Search, 
+  Home, ClipboardList, FileDown, CreditCard, GitMerge, Droplet, Info, 
+  Settings as SettingsIcon, ArrowLeft, LogOut, User as UserIcon, ShieldCheck 
+} from 'lucide-react';
+import { auth, AppUser, syncUserDocument, logout, handleRedirectResult, getBloodDonors, addBloodDonor, deleteBloodDonor, getAppSettingsFromFirestore, updateAppSettingsInFirestore, verifyConnection } from './services/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { OrganizationChart } from './components/OrganizationChart';
 import { MemberDirectory } from './components/MemberDirectory';
 import { Constitution } from './components/Constitution';
@@ -12,15 +21,31 @@ import { MemberForm } from './components/MemberForm';
 import { DocumentsGenerator } from './components/DocumentsGenerator';
 import { FamilyTree } from './components/FamilyTree';
 import { BloodDonors } from './components/BloodDonors';
-import { Member, Transaction, ConstitutionSection, CouncilType, FamilyMember, BloodDonor } from './types';
+import { AboutUs } from './components/AboutUs';
+import { Dashboard } from './components/Dashboard';
+import { Settings } from './components/Settings';
+import { Homepage } from './components/Homepage';
+import { Login } from './components/Login';
+import { Member, Transaction, ConstitutionSection, CouncilType, FamilyMember, BloodDonor, AppSettings, Notice } from './types';
 
-type ViewType = 'DASHBOARD' | 'MEMBERS' | 'CONSTITUTION' | 'CONSTITUTION_INFOGRAPHIC' | 'FINANCE' | 'REPORTS' | 'BACKUP' | 'NOTICE' | 'IDCARD' | 'FORM' | 'DOCUMENTS' | 'FAMILY_TREE' | 'BLOOD_DONORS';
+type ViewType = 'HOMEPAGE' | 'DASHBOARD' | 'MEMBERS' | 'CONSTITUTION' | 'CONSTITUTION_INFOGRAPHIC' | 'FINANCE' | 'REPORTS' | 'BACKUP' | 'NOTICE' | 'IDCARD' | 'FORM' | 'DOCUMENTS' | 'FAMILY_TREE' | 'BLOOD_DONORS' | 'ABOUT_US' | 'SETTINGS';
 
 function App() {
-  const [activeView, setActiveView] = useState<ViewType>('DASHBOARD');
-  const [logo, setLogo] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<ViewType>(() => {
+    // Immediate URL detection for correct initial render
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view') as ViewType | null;
+    const validViews: ViewType[] = ['HOMEPAGE', 'DASHBOARD', 'MEMBERS', 'CONSTITUTION', 'CONSTITUTION_INFOGRAPHIC', 'FINANCE', 'REPORTS', 'BACKUP', 'NOTICE', 'IDCARD', 'FORM', 'DOCUMENTS', 'FAMILY_TREE', 'BLOOD_DONORS', 'ABOUT_US', 'SETTINGS'];
+    if (viewParam && validViews.includes(viewParam)) return viewParam;
+    return 'HOMEPAGE';
+  });
+  const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [showForceProceed, setShowForceProceed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(true);
+  const [isInIframe, setIsInIframe] = useState(false);
   const [menuSearch, setMenuSearch] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
   const [embedCodeCopied, setEmbedCodeCopied] = useState(false);
@@ -36,9 +61,127 @@ function App() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importStatus, setImportStatus] = useState<{msg: string, type: 'success'|'error'} | null>(null);
+  const [firestoreStatus, setFirestoreStatus] = useState<{success: boolean, error?: string} | null>(null);
+
+  // Fetch App Settings from Firestore
+  useEffect(() => {
+    const initApp = async () => {
+      // First verify connection
+      const conn = await verifyConnection();
+      setFirestoreStatus(conn);
+      
+      if (conn.success) {
+        const settings = await getAppSettingsFromFirestore();
+        if (settings) {
+          setAppSettings(prev => ({ ...prev, ...settings }));
+        }
+      }
+    };
+    initApp();
+  }, []);
+
+  const handleUpdateSettings = async (newSettings: AppSettings | ((prev: AppSettings) => AppSettings)) => {
+    if (typeof newSettings === 'function') {
+      const updated = newSettings(appSettings);
+      setAppSettings(updated);
+      await updateAppSettingsInFirestore(updated);
+    } else {
+      setAppSettings(newSettings);
+      await updateAppSettingsInFirestore(newSettings);
+    }
+  };
+
+  // --- Auth & Role Management ---
+  useEffect(() => {
+    let isMounted = true;
+    let authResolved = false;
+
+    // Safety timeout: Ensure loading screen eventually disappears (e.g. if SDK blocked)
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted && !authResolved) {
+        console.warn("Auth check timed out, proceeding to default state.");
+        setIsAuthLoading(false);
+      }
+    }, 6000); // Increased to 6s for slower networks
+
+    const subscribeToAuth = async () => {
+      // 1. Handle Redirect Result FIRST
+      try {
+        const user = await handleRedirectResult();
+        if (user && isMounted) {
+          const appUser = await syncUserDocument(user);
+          setCurrentUser(appUser);
+          setIsAuthLoading(false);
+          authResolved = true;
+          return; // Stop here if redirect resolved
+        }
+      } catch (error: any) {
+        console.error("Redirect login error", error);
+        // Don't set hard error here, let onAuthStateChanged try to recover
+      }
+
+      // 2. Main Auth Listener
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (!isMounted) return;
+        
+        authResolved = true;
+        setAuthError(null);
+        
+        try {
+          if (user) {
+            const appUser = await syncUserDocument(user);
+            setCurrentUser(appUser);
+          } else {
+            setCurrentUser(null);
+          }
+        } catch (error: any) {
+          console.error("Error syncing user", error);
+          
+          // If profile sync fails (e.g. session expired or Firestore blocked)
+          // we should still allow entrance if the user is verified, 
+          // or show a clear way to re-login.
+          if (error.code === 'permission-denied' || error.message?.includes('permission')) {
+             setAuthError("আপনার প্রোফাইল এক্সেস করার অনুমতি নেই। এডমিনের সাথে যোগাযোগ করুন।");
+          } else {
+             setAuthError(error.message || "ইউজার প্রোফাইল সিঙ্ক করতে সমস্যা হয়েছে।");
+          }
+          
+          // If it's a transient error, we don't necessarily want to block the whole app 
+          // but we MUST ensure currentUser is null if we can't verify them.
+          setCurrentUser(null);
+        } finally {
+          setIsAuthLoading(false);
+        }
+      });
+
+      return unsubscribe;
+    };
+
+    const authUnsubscribePromise = subscribeToAuth();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(safetyTimeout);
+      authUnsubscribePromise.then(unsub => unsub && typeof unsub === 'function' && unsub());
+    };
+  }, []);
+
+  // Handle loading fallback link
+  useEffect(() => {
+    if (isAuthLoading) {
+      const timer = setTimeout(() => {
+        setShowForceProceed(true);
+      }, 2000); // Show link after 2s of loading
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthLoading]);
+
+  const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
 
   // --- Handle URL Routing & PWA Install ---
   useEffect(() => {
+    setIsInIframe(window.self !== window.top);
     // 1. Handle PWA Install Prompt
     const handler = (e: any) => {
       e.preventDefault();
@@ -58,7 +201,7 @@ function App() {
     }
     
     // Validate view param
-    const validViews: ViewType[] = ['DASHBOARD', 'MEMBERS', 'CONSTITUTION', 'CONSTITUTION_INFOGRAPHIC', 'FINANCE', 'REPORTS', 'BACKUP', 'NOTICE', 'IDCARD', 'FORM', 'DOCUMENTS', 'FAMILY_TREE', 'BLOOD_DONORS'];
+    const validViews: ViewType[] = ['HOMEPAGE', 'DASHBOARD', 'MEMBERS', 'CONSTITUTION', 'CONSTITUTION_INFOGRAPHIC', 'FINANCE', 'REPORTS', 'BACKUP', 'NOTICE', 'IDCARD', 'FORM', 'DOCUMENTS', 'FAMILY_TREE', 'BLOOD_DONORS', 'ABOUT_US', 'SETTINGS'];
     
     if (viewParam && validViews.includes(viewParam)) {
       setActiveView(viewParam);
@@ -125,83 +268,77 @@ function App() {
   };
 
   // --- State Data ---
+  const [logo, setLogo] = useState<string | null>(() => {
+    return localStorage.getItem('foundation_logo') || null;
+  });
+
   const [members, setMembers] = useState<Member[]>(() => {
     const saved = localStorage.getItem('foundation_members');
     if (saved) return JSON.parse(saved);
-    return [
-      { 
-        id: '1', 
-        name: 'আব্দুল করিম', 
-        phone: '01711000000', 
-        council: 'ADVISORY', 
-        designation: 'প্রধান উপদেষ্টা',
-        nid: '1985123456789',
-        address: 'ধানমন্ডি, ঢাকা',
-        bloodGroup: 'A+',
-        joinDate: '2023-01-01' 
-      },
-      { 
-        id: '2', 
-        name: 'রহিম উদ্দিন', 
-        phone: '01711000001', 
-        council: 'EXECUTIVE', 
-        designation: 'সভাপতি', 
-        nid: '1990123456789',
-        address: 'মিরপুর ১০, ঢাকা',
-        bloodGroup: 'B+',
-        joinDate: '2023-01-15' 
-      },
-      { 
-        id: '3', 
-        name: 'করিম বক্স', 
-        phone: '01711000002', 
-        council: 'EXECUTIVE', 
-        designation: 'সাধারণ সম্পাদক', 
-        nid: '1992123456789',
-        address: 'উত্তরা, ঢাকা',
-        bloodGroup: 'O+',
-        joinDate: '2023-01-20' 
-      },
-      { 
-        id: '4', 
-        name: 'জামাল হোসেন', 
-        phone: '01711000003', 
-        council: 'GENERAL', 
-        designation: 'সদস্য',
-        nid: '1995123456789',
-        address: 'সাভার, ঢাকা',
-        bloodGroup: 'AB-',
-        joinDate: '2023-02-01' 
-      }
-    ];
+    return [];
   });
 
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
     const saved = localStorage.getItem('foundation_transactions');
     if (saved) return JSON.parse(saved);
-    return [
-      { id: '101', date: '2024-01-05', month: 'জানুয়ারি', year: 2024, amount: 500, type: 'INCOME', category: 'মাসিক চাঁদা', memberId: '2' },
-      { id: '102', date: '2024-01-10', month: 'জানুয়ারি', year: 2024, amount: 500, type: 'INCOME', category: 'মাসিক চাঁদা', memberId: '3' },
-      { id: '103', date: '2024-01-15', month: 'জানুয়ারি', year: 2024, amount: 2000, type: 'EXPENSE', category: 'অফিস ভাড়া' },
-      { id: '104', date: '2024-02-05', month: 'ফেব্রুয়ারি', year: 2024, amount: 10000, type: 'INCOME', category: 'অনুদান' },
-      { id: '105', date: '2024-02-10', month: 'ফেব্রুয়ারি', year: 2024, amount: 5000, type: 'EXPENSE', category: 'শীতবস্ত্র বিতরণ কর্মসূচি' },
-    ];
+    return [];
   });
 
   const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>(() => {
     const saved = localStorage.getItem('foundation_family_members');
     if (saved) return JSON.parse(saved);
-    return [
-      { id: '1', name: 'প্রতিষ্ঠাতা', generation: 1, relationship: 'মূল', birthYear: '1900', deathYear: '1980', parentId: null },
-      { id: '2', name: 'সন্তান ১', generation: 2, relationship: 'সন্তান', birthYear: '1930', parentId: '1' },
-      { id: '3', name: 'সন্তান ২', generation: 2, relationship: 'সন্তান', birthYear: '1935', parentId: '1' },
-    ];
+    return [];
   });
 
-  const [bloodDonors, setBloodDonors] = useState<BloodDonor[]>(() => {
-    const saved = localStorage.getItem('foundation_blood_donors');
+  const [bloodDonors, setBloodDonors] = useState<BloodDonor[]>([]);
+
+  // Fetch Blood Donors from Firestore
+  useEffect(() => {
+    const fetchDonors = async () => {
+      const donors = await getBloodDonors();
+      setBloodDonors(donors);
+    };
+    fetchDonors();
+  }, []);
+
+  const [notices, setNotices] = useState<Notice[]>(() => {
+    const saved = localStorage.getItem('foundation_notices');
     if (saved) return JSON.parse(saved);
     return [];
+  });
+
+  const [appSettings, setAppSettings] = useState<AppSettings>(() => {
+    const defaultSettings: AppSettings = {
+      contact: {
+        email: 'admin@aponfoundation.org',
+        whatsapp: '+8801XXXXXXXXX',
+        phone: '+8801XXXXXXXXX',
+        address: 'বালীগাঁও, অষ্টগ্রাম, কিশোরগঞ্জ, বাংলাদেশ'
+      },
+      organization: {
+        foundingYear: '২০২৫',
+        hqLocation: 'বালীগাঁও, অষ্টগ্রাম, কিশোরগঞ্জ',
+        slogan: 'মানব সেবায় আমরা',
+        registrationNo: ''
+      },
+      admin: {
+        username: 'admin',
+        passwordHash: ''
+      }
+    };
+
+    try {
+      const saved = localStorage.getItem('foundation_app_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && parsed.organization) {
+          return { ...defaultSettings, ...parsed, organization: { ...defaultSettings.organization, ...parsed.organization }, contact: { ...defaultSettings.contact, ...parsed.contact } };
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse settings", e);
+    }
+    return defaultSettings;
   });
 
   // FULL CONSTITUTION DATA
@@ -702,6 +839,67 @@ function App() {
   ];
   });
 
+  // Dynamic Manifest generation for PWA Icon
+  useEffect(() => {
+    if (logo) {
+      const manifestUrl = `/manifest.json`;
+      // Instead of relying on static manifest, we construct a blob dynamically
+      const manifest = {
+        "short_name": "Apon Foundation",
+        "name": "Apon Foundation Management System",
+        "icons": [
+          {
+            "src": logo,
+            "sizes": "192x192 512x512",
+            "type": "image/png"
+          }
+        ],
+        "start_url": "/",
+        "display": "standalone",
+        "theme_color": "#2563eb",
+        "background_color": "#ffffff"
+      };
+      
+      const stringManifest = JSON.stringify(manifest);
+      const blob = new Blob([stringManifest], {type: 'application/json'});
+      const manifestObjectURL = URL.createObjectURL(blob);
+      
+      const linkElements = document.querySelectorAll('link[rel="manifest"]');
+      if (linkElements.length > 0) {
+        linkElements.forEach(el => el.setAttribute('href', manifestObjectURL));
+      } else {
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = manifestObjectURL;
+        document.head.appendChild(link);
+      }
+      
+      // Add favicon too
+      let favicon = document.querySelector('link[rel="icon"]');
+      if (!favicon) {
+          favicon = document.createElement('link');
+          favicon.setAttribute('rel', 'icon');
+          document.head.appendChild(favicon);
+      }
+      favicon.setAttribute('href', logo);
+
+      return () => {
+        URL.revokeObjectURL(manifestObjectURL);
+      };
+    }
+  }, [logo]);
+
+  // --- Data Cleanup & Initialization ---
+  useEffect(() => {
+    // Purge specific dummy IDs from localStorage if they exist
+    const dummyMemberIds = ['1', '2', '3', '4'];
+    const dummyTransactionIds = ['101', '102', '103', '104', '105'];
+    
+    setMembers(prev => prev.filter(m => !dummyMemberIds.includes(m.id)));
+    setTransactions(prev => prev.filter(t => !dummyTransactionIds.includes(t.id)));
+    setFamilyMembers(prev => prev.filter(fm => !dummyMemberIds.includes(fm.id)));
+  }, []);
+
   // Persist state changes
   useEffect(() => {
     localStorage.setItem('foundation_members', JSON.stringify(members));
@@ -720,12 +918,33 @@ function App() {
   }, [bloodDonors]);
 
   useEffect(() => {
+    localStorage.setItem('foundation_app_settings', JSON.stringify(appSettings));
+  }, [appSettings]);
+
+  useEffect(() => {
     localStorage.setItem('foundation_constitution', JSON.stringify(constitutionSections));
   }, [constitutionSections]);
 
+  useEffect(() => {
+    localStorage.setItem('foundation_notices', JSON.stringify(notices));
+  }, [notices]);
+
+  useEffect(() => {
+    if (logo) {
+      localStorage.setItem('foundation_logo', logo);
+    } else {
+      localStorage.removeItem('foundation_logo');
+    }
+  }, [logo]);
+
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setLogo(URL.createObjectURL(e.target.files[0]));
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogo(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -835,38 +1054,56 @@ function App() {
     e.target.value = '';
   };
 
-  const menuSections = [
+  const menuSections = useMemo(() => [
+    {
+      title: 'মূল বিভাগ',
+      items: [
+        { view: 'HOMEPAGE' as ViewType, icon: Globe, label: 'হোমপেজ', roles: ['SUPER_ADMIN', 'ADMIN', 'USER'] },
+      ]
+    },
     {
       title: 'প্রশাসনিক',
       items: [
-        { view: 'DASHBOARD' as ViewType, icon: Home, label: 'ড্যাশবোর্ড' },
-        { view: 'MEMBERS' as ViewType, icon: Users, label: 'সদস্য তালিকা' },
-        { view: 'CONSTITUTION' as ViewType, icon: BookOpen, label: 'গঠনতন্ত্র' },
-        { view: 'FINANCE' as ViewType, icon: Wallet, label: 'আর্থিক ব্যবস্থাপনা' },
-        { view: 'IDCARD' as ViewType, icon: CreditCard, label: 'আইডি কার্ড' },
-        { view: 'FORM' as ViewType, icon: FileText, label: 'ভর্তি ফরম' },
+        { view: 'DASHBOARD' as ViewType, icon: Home, label: 'ড্যাশবোর্ড', roles: ['SUPER_ADMIN', 'ADMIN', 'USER'] },
+        { view: 'MEMBERS' as ViewType, icon: Users, label: 'সদস্য তালিকা', roles: ['SUPER_ADMIN', 'ADMIN', 'USER'] },
+        { view: 'CONSTITUTION' as ViewType, icon: BookOpen, label: 'গঠনতন্ত্র', roles: ['SUPER_ADMIN', 'ADMIN', 'USER'] },
+        { view: 'FINANCE' as ViewType, icon: Banknote, label: 'আর্থিক ব্যবস্থাপনা', roles: ['SUPER_ADMIN', 'ADMIN'] },
+        { view: 'IDCARD' as ViewType, icon: CreditCard, label: 'আইডি কার্ড', roles: ['SUPER_ADMIN', 'ADMIN'] },
+        { view: 'FORM' as ViewType, icon: FileText, label: 'ভর্তি ফরম', roles: ['SUPER_ADMIN', 'ADMIN'] },
       ]
     },
     {
       title: 'তথ্য ও রিপোর্ট',
       items: [
-        { view: 'NOTICE' as ViewType, icon: Bell, label: 'নোটিশ বোর্ড' },
-        { view: 'DOCUMENTS' as ViewType, icon: ClipboardList, label: 'রেজুলেশন প্যাড' },
-        { view: 'REPORTS' as ViewType, icon: FileDown, label: 'রিপোর্ট ও এক্সপোর্ট' },
-        { view: 'BACKUP' as ViewType, icon: Database, label: 'ডাটা ও সেটিংস' },
+        { view: 'NOTICE' as ViewType, icon: Bell, label: 'নোটিশ বোর্ড', roles: ['SUPER_ADMIN', 'ADMIN'] },
+        { view: 'DOCUMENTS' as ViewType, icon: ClipboardList, label: 'রেজুলেশন প্যাড', roles: ['SUPER_ADMIN', 'ADMIN'] },
+        { view: 'REPORTS' as ViewType, icon: FileDown, label: 'রিপোর্ট ও এক্সপোর্ট', roles: ['SUPER_ADMIN', 'ADMIN'] },
+        { view: 'BACKUP' as ViewType, icon: Database, label: 'ডাটা ব্যাকআপ', roles: ['SUPER_ADMIN'] },
       ]
     },
     {
       title: 'বিশেষ ফিচার',
       items: [
-        { view: 'FAMILY_TREE' as ViewType, icon: GitMerge, label: 'বংশপরম্পরা চার্ট' },
-        { view: 'BLOOD_DONORS' as ViewType, icon: Droplet, label: 'রক্তদাতা গ্রুপ' },
-        { view: 'CONSTITUTION_INFOGRAPHIC' as ViewType, icon: PieChart, label: 'গঠনতন্ত্র (ইনফো)' },
+        { view: 'FAMILY_TREE' as ViewType, icon: GitMerge, label: 'বংশপরম্পরা চার্ট', roles: ['SUPER_ADMIN', 'ADMIN', 'USER'] },
+        { view: 'BLOOD_DONORS' as ViewType, icon: Droplet, label: 'রক্তদাতা গ্রুপ', roles: ['SUPER_ADMIN', 'ADMIN', 'USER'] },
+        { view: 'CONSTITUTION_INFOGRAPHIC' as ViewType, icon: PieChart, label: 'গঠনতন্ত্র (ইনফো)', roles: ['SUPER_ADMIN', 'ADMIN', 'USER'] },
+      ]
+    },
+    {
+      title: 'সিস্টেম সেটিংস',
+      items: [
+        { view: 'SETTINGS' as ViewType, icon: SettingsIcon, label: 'সেটিংস', roles: ['SUPER_ADMIN'] },
+      ]
+    },
+    {
+      title: 'অতিরিক্ত তথ্য',
+      items: [
+        { view: 'ABOUT_US' as ViewType, icon: Info, label: 'আমাদের সম্পর্কে', roles: ['SUPER_ADMIN', 'ADMIN', 'USER'] },
       ]
     }
-  ];
+  ], []);
 
-  const NavItem = ({ view, icon: Icon, label }: { view: ViewType, icon: any, label: string }) => (
+  const NavItem = ({ view, icon: Icon, label }: { view: ViewType, icon: any, label: string, key?: any }) => (
     <button
       onClick={() => handleNavigate(view)}
       className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-all duration-300 group ${
@@ -881,11 +1118,79 @@ function App() {
     </button>
   );
 
+  if (isAuthLoading || authError) {
+    return (
+      <div className="min-h-screen bg-[#143d27] flex items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-6 max-w-sm w-full text-center">
+          {!authError ? (
+            <>
+              <div className="relative">
+                <div className="w-24 h-24 bg-white/5 rounded-full border-4 border-white/10 border-t-yellow-500 animate-spin"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-lg overflow-hidden border-2 border-yellow-500/30">
+                    {logo ? <img src={logo} className="w-full h-full object-cover" /> : <ShieldCheck className="text-[#143d27]" size={32} />}
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <h1 className="text-yellow-500 font-bold text-2xl font-bengali">আপন ফাউন্ডেশন</h1>
+                  <p className="text-white/60 text-xs font-bengali uppercase tracking-widest">মানবসেবায় আমরা</p>
+                </div>
+                <p className="text-slate-300 text-sm font-bengali animate-pulse">অ্যাপটি প্রস্তুত করা হচ্ছে...</p>
+              </div>
+              <div className={`transition-all duration-700 ${showForceProceed ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                <button 
+                  onClick={() => setIsAuthLoading(false)}
+                  className="text-xs text-slate-400 underline underline-offset-4 hover:text-slate-200 transition-colors"
+                >
+                  বেশি সময় লাগলে এখানে ক্লিক করুন
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-2xl space-y-4 animate-fade-in">
+              <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto text-red-500">
+                <AlertTriangle size={24} />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-white font-bold text-lg font-bengali">অপ্রত্যাশিত সমস্যা!</h2>
+                <p className="text-red-200/70 text-xs leading-relaxed font-bengali">{authError}</p>
+              </div>
+              <div className="pt-2 flex flex-col gap-2">
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-xl text-sm transition-colors"
+                >
+                  পুনরায় চেষ্টা করুন
+                </button>
+                <button 
+                  onClick={() => logout()}
+                  className="w-full bg-white/5 hover:bg-white/10 text-white/70 py-2 rounded-xl text-xs transition-colors"
+                >
+                  অন্য অ্যাকাউন্ট দিয়ে লগইন করুন
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const publicViews: ViewType[] = ['BLOOD_DONORS', 'HOMEPAGE', 'ABOUT_US', 'CONSTITUTION', 'CONSTITUTION_INFOGRAPHIC'];
+
+  if (!currentUser && !(publicViews.includes(activeView) || isEmbedMode)) {
+    return <Login onLoginSuccess={() => {}} />;
+  }
+
+  const isPublicMode = !currentUser && publicViews.includes(activeView);
+
   return (
     <div className={`min-h-screen bg-slate-50 flex flex-col md:flex-row font-sans text-slate-700 ${isEmbedMode ? 'bg-transparent' : ''}`}>
       
-      {/* Sidebar - HIDDEN IN EMBED MODE OR WHEN isMenuVisible IS FALSE */}
-      {!isEmbedMode && isMenuVisible && (
+      {/* Sidebar - HIDDEN IN EMBED MODE OR WHEN isMenuVisible IS FALSE OR IN PUBLIC MODE */}
+      {!isEmbedMode && !isPublicMode && isMenuVisible && (
         <aside className={`fixed top-0 left-0 z-[200] h-screen w-64 md:w-72 bg-[#143d27] border-r border-[#1a4f33] p-5 flex flex-col transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} overflow-y-auto custom-scrollbar shadow-2xl`}>
           
           {/* Header */}
@@ -917,10 +1222,42 @@ function App() {
             />
           </div>
 
+          {/* User Profile Hook */}
+          {currentUser && (
+            <div className="mb-6 p-3 bg-white/5 rounded-xl border border-white/10">
+              <div className="flex items-center gap-3">
+                <img 
+                  src={currentUser.photoURL || 'https://via.placeholder.com/40'} 
+                  className="w-9 h-9 rounded-lg border border-yellow-500/30"
+                  alt="User"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-bold text-white truncate">{currentUser.displayName}</p>
+                  <p className="text-[9px] text-yellow-500/70 font-black uppercase tracking-tighter">
+                    {currentUser.role === 'SUPER_ADMIN' ? 'সুপার এডমিন' : currentUser.role === 'ADMIN' ? 'এডমিন' : 'সাধারণ ইউজার'}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => logout()}
+                  className="p-1.5 text-slate-400 hover:text-red-400 transition-colors"
+                  title="Logout"
+                >
+                  <LogOut size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Navigation Sections */}
           <nav className="space-y-6 flex-1 pb-4">
             {menuSections.map((section, idx) => {
-              const filteredItems = section.items.filter(item => item.label.toLowerCase().includes(menuSearch.toLowerCase()));
+              const filteredItems = section.items.filter(item => {
+                const searchMatch = item.label.toLowerCase().includes(menuSearch.toLowerCase());
+                const roleMatch = item.roles.includes(currentUser?.role || 'USER');
+                return searchMatch && roleMatch;
+              });
+              
               if (filteredItems.length === 0) return null;
               
               return (
@@ -944,8 +1281,22 @@ function App() {
                   onClick={handleInstallClick}
                   className="w-full flex items-center justify-center gap-2 bg-yellow-500 text-[#143d27] py-2.5 px-4 rounded-lg shadow-lg hover:bg-yellow-400 transition-all font-bold text-sm"
                 >
-                  <Smartphone size={18} /> <span className="hidden md:inline">অ্যাপ ইনস্টল করুন</span>
+                  <Smartphone size={18} /> <span>অ্যাপ ইনস্টল করুন</span>
                 </button>
+            )}
+
+            {!deferredPrompt && isInIframe && (
+              <div className="space-y-2">
+                <p className="text-[10px] text-slate-400 text-center px-2">ইনস্টল করতে অ্যাপটি নতুন ট্যাবে ওপেন করুন</p>
+                <a
+                  href={window.location.href.split('?')[0]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-500 py-2.5 px-4 rounded-lg hover:bg-yellow-500/20 transition-all font-bold text-sm"
+                >
+                  <ExternalLink size={18} /> <span>নতুন ট্যাবে খুলুন</span>
+                </a>
+              </div>
             )}
             
             <button 
@@ -959,12 +1310,25 @@ function App() {
               {linkCopied ? <CheckCircle size={18} /> : <LinkIcon size={18} />} 
               <span className="hidden md:inline">{linkCopied ? 'লিংক কপি হয়েছে!' : 'লিংক শেয়ার করুন'}</span>
             </button>
+
+            <button 
+              onClick={handleCopyEmbedCode}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg transition-all font-bold text-sm ${
+                embedCodeCopied 
+                  ? 'bg-green-600 text-white' 
+                  : 'bg-[#0f2e1d] border border-[#1a4f33] text-slate-300 hover:bg-[#1a4f33] hover:text-white'
+              }`}
+              title="অন্য ওয়েবসাইটে ব্যবহারের জন্য এমবেড কোড কপি করুন"
+            >
+              {embedCodeCopied ? <CheckCircle size={18} /> : <Code size={18} />} 
+              <span className="hidden md:inline">{embedCodeCopied ? 'কোড কপি হয়েছে!' : 'এমবেড কোড কপি করুন'}</span>
+            </button>
           </div>
         </aside>
       )}
 
-      {/* Mobile Header - HIDDEN IN EMBED MODE */}
-      {!isEmbedMode && isMenuVisible && (
+      {/* Mobile Header - HIDDEN IN EMBED MODE OR PUBLIC MODE */}
+      {!isEmbedMode && !isPublicMode && isMenuVisible && (
         <div className="md:hidden bg-[#143d27] p-4 flex items-center gap-4 shadow-lg sticky top-0 z-[150] border-b border-[#1a4f33]">
           <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="p-1 bg-[#0f2e1d] rounded-lg text-white hover:bg-[#1a4f33] transition-colors border border-[#1a4f33]">
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
@@ -977,43 +1341,63 @@ function App() {
       )}
 
       {/* Main Content */}
-      <main className={`flex-1 overflow-y-auto max-h-screen ${isEmbedMode ? 'p-0' : 'p-4 md:p-8'} ${isMenuVisible && !isEmbedMode ? 'md:ml-72' : ''}`}>
-        <div className={isEmbedMode ? '' : 'max-w-6xl mx-auto space-y-8'}>
+      <main className={`flex-1 overflow-y-auto max-h-screen ${isEmbedMode || isPublicMode ? 'p-0' : 'p-4 md:p-8'} ${(isMenuVisible && !isEmbedMode && !isPublicMode) ? 'md:ml-72' : ''}`}>
+        <div className={(isEmbedMode || isPublicMode) ? '' : 'max-w-6xl mx-auto space-y-8 relative'}>
           
-          {!isEmbedMode && !isMenuVisible && (
-            <div className="mb-6 flex justify-center md:justify-start">
+          {/* Firestore Connection Warning */}
+          {firestoreStatus && !firestoreStatus.success && (
+            <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg shadow-sm animate-pulse mb-6">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="text-amber-600" size={24} />
+                <div className="flex-1">
+                  <h3 className="font-bold text-amber-900 text-sm">Cloud Sync Error (সার্ভার সংযোগে ত্রুটি)</h3>
+                  <p className="text-amber-800 text-xs mt-1">
+                    রিয়েল-টাইম ডাটা সিঙ্ক হচ্ছে না। আপনার ইন্টারনেট সংযোগ চেক করুন। 
+                    {firestoreStatus.error?.toLowerCase().includes('quota') && ' (Quota exceeded - দৈনিক সীমা অতিক্রম করেছে)'}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 bg-amber-600 text-white text-[11px] font-bold rounded-lg uppercase shadow-sm hover:bg-amber-700 transition-colors"
+                >
+                  Refresh
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {!isEmbedMode && !isPublicMode && !isMenuVisible && (
+            <div className="w-full flex justify-start mb-2">
               <button 
-                onClick={() => setIsMenuVisible(true)}
-                className="flex items-center gap-2 bg-[#143d27] text-yellow-500 px-6 py-3 rounded-full font-bold shadow-lg hover:shadow-xl hover:scale-105 transition-all border border-yellow-500/30 hover:bg-[#1a4f33]"
+                onClick={() => {
+                  setIsMenuVisible(true);
+                  if (window.innerWidth < 768) {
+                    setIsMobileMenuOpen(true);
+                  }
+                }}
+                className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 text-[11px] md:text-sm font-medium transition-colors"
               >
-                <Menu size={20} /> মেনুবারে ফিরুন
+                <ArrowLeft size={14} /> মেনু বারে ফিরুন
               </button>
+            </div>
+          )}
+
+          {activeView === 'HOMEPAGE' && (
+            <div className="animate-fade-in">
+               <Homepage 
+                 settings={appSettings} 
+                 members={members} 
+                 transactions={transactions} 
+                 notices={notices} 
+                 logoUrl={logo}
+                 onNavigate={handleNavigate}
+               />
             </div>
           )}
 
           {activeView === 'DASHBOARD' && (
             <div className="animate-fade-in space-y-8">
-              {!isEmbedMode && (
-                <div className="about-us-section bg-white p-8 rounded-2xl shadow-sm border border-indigo-100 relative overflow-hidden">
-                  <div className="relative z-10">
-                    <h1 className="text-3xl font-bold text-slate-800 mb-3">আমাদের সম্পর্কে</h1>
-                    <p className="text-slate-600 leading-relaxed mb-6 max-w-3xl text-justify">
-                      আপন ফাউন্ডেশন একটি অলাভজনক সামাজিক ও মানবিক সংগঠন। আমরা সমাজের সুবিধাবঞ্চিত মানুষের কল্যাণে নিবেদিত। 
-                      দারিদ্র্য বিমোচন, শিক্ষা বিস্তার, স্বাস্থ্যসেবা প্রদান এবং মানবিক মূল্যবোধ প্রতিষ্ঠায় আমরা নিরলসভাবে কাজ করে যাচ্ছি।
-                      আমাদের লক্ষ্য হলো একটি সমৃদ্ধ ও বৈষম্যহীন সমাজ গঠন করা।
-                    </p>
-                    <button 
-                      onClick={() => handleNavigate('CONSTITUTION_INFOGRAPHIC')}
-                      className="flex items-center gap-2 text-indigo-600 font-bold hover:text-indigo-800 transition-colors group"
-                    >
-                      আরও পড়ুন <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                    </button>
-                  </div>
-                  {/* Decorative background element */}
-                  <div className="absolute right-0 top-0 w-64 h-64 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 pointer-events-none"></div>
-                </div>
-              )}
-              <OrganizationChart />
+              <Dashboard transactions={transactions} onNavigate={handleNavigate} isEmbedMode={isEmbedMode} />
             </div>
           )}
 
@@ -1023,6 +1407,7 @@ function App() {
                 logoUrl={logo} 
                 sections={constitutionSections}
                 onUpdateSections={setConstitutionSections}
+                settings={appSettings}
               />
             </div>
           )}
@@ -1042,7 +1427,15 @@ function App() {
                 <h1 className="text-3xl font-bold text-slate-800 mb-2">নোটিশ বোর্ড</h1>
                 <p className="text-slate-600">আনুষ্ঠানিক নোটিশ তৈরি করুন এবং সদস্যদের কাছে পাঠান।</p>
               </header>
-              <NoticeBoard members={members} logoUrl={logo} />
+              <NoticeBoard 
+                members={members} 
+                logoUrl={logo} 
+                settings={appSettings} 
+                notices={notices}
+                onSaveNotice={(n) => setNotices([n, ...notices])}
+                onDeleteNotice={(id) => setNotices(notices.filter(n => n.id !== id))}
+                isAdmin={isAdmin}
+              />
             </div>
           )}
 
@@ -1054,6 +1447,8 @@ function App() {
                  onUpdateMember={(updatedMember) => setMembers(members.map(m => m.id === updatedMember.id ? updatedMember : m))}
                  onDeleteMember={(id) => setMembers(members.filter(m => m.id !== id))}
                  logoUrl={logo}
+                 settings={appSettings}
+                 isAdmin={isAdmin}
                />
             </div>
           )}
@@ -1064,13 +1459,13 @@ function App() {
                 <h1 className="text-3xl font-bold text-slate-800 mb-2">আইডি কার্ড জেনারেটর</h1>
                 <p className="text-slate-600">সদস্যদের জন্য প্রফেশনাল আইডি কার্ড তৈরি করুন।</p>
               </header>
-              <IDCardGenerator members={members} logoUrl={logo} />
+              <IDCardGenerator members={members} logoUrl={logo} settings={appSettings} />
             </div>
           )}
 
           {activeView === 'FORM' && (
             <div className="animate-fade-in">
-               <MemberForm logoUrl={logo} />
+               <MemberForm logoUrl={logo} settings={appSettings} />
             </div>
           )}
 
@@ -1080,7 +1475,7 @@ function App() {
                 <h1 className="text-3xl font-bold text-slate-800 mb-2">অফিসিয়াল ডকুমেন্টস</h1>
                 <p className="text-slate-600">প্যাড, রসিদ এবং ভাউচার তৈরি করুন।</p>
               </header>
-               <DocumentsGenerator logoUrl={logo} />
+               <DocumentsGenerator logoUrl={logo} settings={appSettings} />
             </div>
           )}
 
@@ -1093,14 +1488,45 @@ function App() {
                <FamilyTree 
                  members={familyMembers} 
                  setMembers={setFamilyMembers} 
-                 onBack={() => handleNavigate('DASHBOARD')} 
+                 logoUrl={logo}
+                 settings={appSettings}
                />
             </div>
           )}
 
           {activeView === 'BLOOD_DONORS' && (
+            <div className={`animate-fade-in ${isPublicMode ? 'min-h-screen bg-white p-4 md:p-10' : ''}`}>
+              <BloodDonors 
+                donors={bloodDonors} 
+                setDonors={setBloodDonors} 
+                onDeleteDonor={async (id) => {
+                  await deleteBloodDonor(id);
+                  setBloodDonors(prev => prev.filter(d => d.id !== id));
+                }}
+                logoUrl={logo} 
+                settings={appSettings} 
+                onUpdateSettings={handleUpdateSettings}
+                isAdmin={isAdmin}
+                isPublic={isPublicMode}
+              />
+            </div>
+          )}
+
+          {activeView === 'ABOUT_US' && (
             <div className="animate-fade-in">
-              <BloodDonors donors={bloodDonors} setDonors={setBloodDonors} onBack={() => handleNavigate('DASHBOARD')} />
+              <AboutUs logoUrl={logo} settings={appSettings} />
+            </div>
+          )}
+
+          {activeView === 'SETTINGS' && (
+            <div className="animate-fade-in">
+              <Settings 
+                settings={appSettings} 
+                onUpdateSettings={handleUpdateSettings} 
+                logoUrl={logo} 
+                onUpdateLogo={setLogo} 
+                isSuperAdmin={isSuperAdmin}
+              />
             </div>
           )}
 
@@ -1110,7 +1536,10 @@ function App() {
                 transactions={transactions} 
                 members={members}
                 onAddTransaction={(t) => setTransactions([...transactions, t])}
+                onUpdateTransaction={(updated) => setTransactions(transactions.map(t => t.id === updated.id ? updated : t))}
+                onDeleteTransaction={(id) => setTransactions(transactions.filter(t => t.id !== id))}
                 logoUrl={logo}
+                settings={appSettings}
               />
             </div>
           )}
@@ -1121,7 +1550,7 @@ function App() {
                 <h1 className="text-3xl font-bold text-slate-800 mb-2">ইনফোগ্রাফিক রিপোর্ট</h1>
                 <p className="text-slate-600">বিভিন্ন কার্যক্রমের রিপোর্ট তৈরি করুন এবং সোশ্যাল মিডিয়ায় শেয়ার করুন।</p>
               </header>
-              <ActivityReports transactions={transactions} logoUrl={logo} />
+              <ActivityReports transactions={transactions} logoUrl={logo} settings={appSettings} />
             </div>
           )}
 

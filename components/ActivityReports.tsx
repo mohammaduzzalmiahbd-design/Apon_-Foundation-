@@ -1,12 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { BookOpen, Stethoscope, Snowflake, Trophy, Heart, Image as ImageIcon, FileDown, Calendar, Printer, PieChart, CheckCircle2 } from 'lucide-react';
-import { Transaction } from '../types';
+import { Transaction, AppSettings } from '../types';
 import { DocumentHeader } from './DocumentHeader';
-import { downloadAsImage, downloadAsPDF } from '../utils/downloadUtils';
+import { DownloadDropdown } from './DownloadDropdown';
 
 interface Props {
   transactions: Transaction[];
   logoUrl: string | null;
+  settings: AppSettings;
 }
 
 const CATEGORIES = [
@@ -28,11 +29,12 @@ const toBengali = (num: number | string) => {
   }).join('');
 };
 
-export const ActivityReports: React.FC<Props> = ({ transactions, logoUrl }) => {
+export const ActivityReports: React.FC<Props> = ({ transactions, logoUrl, settings }) => {
   const [selectedCategory, setSelectedCategory] = useState(CATEGORIES[1]); // Default Winter
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [customTitle, setCustomTitle] = useState('');
   const [customCount, setCustomCount] = useState('');
+  const reportRef = useRef<HTMLDivElement>(null);
 
   // Calculate stats based on category matching
   const reportData = useMemo(() => {
@@ -112,27 +114,19 @@ export const ActivityReports: React.FC<Props> = ({ transactions, logoUrl }) => {
             />
           </div>
 
-          <div className="flex flex-col gap-2 pt-4">
+          <div className="flex flex-col gap-3 pt-4">
+              <DownloadDropdown 
+                targetRef={reportRef} 
+                fileNamePrefix={`Report_${selectedCategory.id}_${year}`} 
+                settings={settings} 
+                logoUrl={logoUrl} 
+              />
               <button 
                 onClick={() => window.print()} 
-                className="bg-slate-800 text-white py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-slate-900 font-medium"
+                className="bg-slate-800 text-white py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-slate-900 font-medium shadow-sm"
               >
                   <Printer size={18} /> প্রিন্ট করুন
               </button>
-              <div className="grid grid-cols-2 gap-2">
-                <button 
-                    onClick={() => downloadAsImage('activity-report-a4', `Report_${selectedCategory.id}_${year}`)}
-                    className="bg-emerald-50 text-emerald-700 border border-emerald-200 py-2 rounded-lg hover:bg-emerald-100 font-medium flex items-center justify-center gap-2"
-                >
-                    <ImageIcon size={18} /> ছবি
-                </button>
-                <button 
-                    onClick={() => downloadAsPDF('activity-report-a4', `Report_${selectedCategory.id}_${year}`)}
-                    className="bg-rose-50 text-rose-700 border border-rose-200 py-2 rounded-lg hover:bg-rose-100 font-medium flex items-center justify-center gap-2"
-                >
-                    <FileDown size={18} /> পিডিএফ
-                </button>
-              </div>
           </div>
         </div>
       </div>
@@ -141,6 +135,7 @@ export const ActivityReports: React.FC<Props> = ({ transactions, logoUrl }) => {
       <div className="lg:col-span-2 flex justify-center bg-slate-100 p-4 md:p-8 overflow-auto rounded-xl border border-slate-200 order-1 lg:order-2">
         <div className="a4-wrapper p-0 bg-transparent shadow-2xl scale-[0.8] md:scale-100 origin-top">
              <div 
+                ref={reportRef}
                 id="activity-report-a4" 
                 className="a4-paper flex flex-col relative bg-white text-black h-[297mm]" 
                 style={{ padding: '20mm 25mm' }}
@@ -152,7 +147,7 @@ export const ActivityReports: React.FC<Props> = ({ transactions, logoUrl }) => {
                     </div>
                 )}
 
-                <DocumentHeader logoUrl={logoUrl} />
+                <DocumentHeader logoUrl={logoUrl} settings={settings} />
 
                 {/* Report Content */}
                 <div className="relative z-10 flex-1 flex flex-col">

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'foundation-v3';
+const CACHE_NAME = 'foundation-v5';
 const ASSETS = [
   '/',
   '/index.html',
@@ -24,19 +24,26 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  if (e.request.destination === 'document' || e.request.mode === 'navigate') {
-    e.respondWith(
-      fetch(e.request)
-        .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
-          return res;
-        })
-        .catch(() => caches.match(e.request))
-    );
-  } else {
-    e.respondWith(
-      caches.match(e.request).then((response) => response || fetch(e.request))
-    );
+  // Exclude Firebase Auth and other dynamic APIs from caching if needed
+  if (e.request.url.includes('googleapis.com') || e.request.url.includes('firestore')) {
+    return;
   }
+
+  e.respondWith(
+    caches.match(e.request).then((cachedResponse) => {
+      const fetchPromise = fetch(e.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(e.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(() => {
+        // Fallback or ignore fetch errors
+      });
+      
+      return cachedResponse || fetchPromise;
+    })
+  );
 });

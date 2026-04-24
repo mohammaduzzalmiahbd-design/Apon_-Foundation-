@@ -1,0 +1,82 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user roles and basic profile information.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["SUPER_ADMIN", "ADMIN", "USER"] },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Member": {
+      "title": "Foundation Member",
+      "description": "Details of the foundation members for ID cards and reports.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "designation": { "type": "string" },
+        "council": { "type": "string", "enum": ["GENERAL", "EXECUTIVE", "ADVISORY"] },
+        "bloodGroup": { "type": "string" },
+        "joinDate": { "type": "string" },
+        "phone": { "type": "string" },
+        "profileImage": { "type": "string" },
+        "address": { "type": "string" },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["id", "name", "council", "joinDate", "phone"]
+    },
+    "Donor": {
+      "title": "Blood Donor",
+      "description": "Information provided by general users to register as blood donors.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "location": { "type": "string" },
+        "lastDonatedDate": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "phone", "bloodGroup"]
+    },
+    "Settings": {
+      "title": "System Settings",
+      "description": "Global application configurations.",
+      "type": "object",
+      "properties": {
+        "maintenanceMode": { "type": "boolean" },
+        "allowedDomains": { "type": "array", "items": { "type": "string" } },
+        "updatedBy": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles with role assignments."
+    },
+    "/members/{memberId}": {
+      "schema": "Member",
+      "description": "Main database of foundation members."
+    },
+    "/donors/{donorId}": {
+      "schema": "Donor",
+      "description": "Blood donor registration records."
+    },
+    "/settings/config": {
+      "schema": "Settings",
+      "description": "Global settings for the application."
+    }
+  }
+}

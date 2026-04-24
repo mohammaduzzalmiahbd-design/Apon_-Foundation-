@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+    function getRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isSuperAdmin() {
+      return isSignedIn() && isEmailVerified() && getRole() == 'SUPER_ADMIN';
+    }
+
+    function isAdmin() {
+      return isSignedIn() && isEmailVerified() && (getRole() == 'SUPER_ADMIN' || getRole() == 'ADMIN');
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- User Profiles ---
+    match /users/{userId} {
+      // Users can read/update their own profile
+      allow get, update: if isOwner(userId);
+      // Super Admins can manage all users
+      allow read, write: if isSuperAdmin();
+      // Auto-init for new users
+      allow create: if isSignedIn() && isOwner(userId) && (
+        request.resource.data.role == 'USER' || 
+        request.auth.token.email == 'mohammaduzzalmiah.bd@gmail.com'
+      );
+    }
+
+    // --- Members Collection ---
+    match /members/{memberId} {
+      // Everyone signed in can view members
+      allow read: if isSignedIn();
+      // Only Admins and Super Admins can write
+      allow write: if isAdmin() && isValidId(memberId);
+    }
+
+    // --- Donors Collection ---
+    match /donors/{donorId} {
+      // Allow public read for searching donors
+      allow read: if true;
+      // Allow public create for registration
+      allow create: if isValidDonor(request.resource.data);
+      // Only Admins/Super Admins can update or delete
+      allow update, delete: if isAdmin() && isValidId(donorId);
+    }
+
+    function isValidDonor(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.phone is string && data.phone.size() >= 10 && data.phone.size() <= 15 &&
+             data.bloodGroup is string && data.bloodGroup.size() <= 4 &&
+             data.address is string && data.address.size() > 0 && data.address.size() < 500;
+    }
+
+    // --- Settings ---
+    match /settings/config {
+      // Allow everyone to read config (Public info like slogan, contact, banner)
+      allow read: if true;
+      // Only Super Admins can modify settings
+      allow write: if isSuperAdmin();
+    }
+  }
+}

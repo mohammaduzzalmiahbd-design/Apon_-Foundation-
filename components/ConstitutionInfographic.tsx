@@ -1,36 +1,16 @@
-import React, { useState } from 'react';
+import React, { useRef } from 'react';
 import { Target, Shield, BookOpen, Crown, FileDown, Loader2, Sparkles, Quote, Award } from 'lucide-react';
-import { ConstitutionSection } from '../types';
-import { generateLongPDFFromSections } from '../utils/downloadUtils';
+import { ConstitutionSection, AppSettings } from '../types';
+import { DownloadDropdown } from './DownloadDropdown';
 
 interface Props {
   logoUrl: string | null;
   sections: ConstitutionSection[];
+  settings: AppSettings;
 }
 
-export const ConstitutionInfographic: React.FC<Props> = ({ logoUrl, sections }) => {
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [progress, setProgress] = useState('');
-
-  const handleDownload = async () => {
-    setIsDownloading(true);
-    setProgress('শুরু হচ্ছে...');
-    
-    // Allow UI to update before heavy processing
-    setTimeout(async () => {
-      await generateLongPDFFromSections(
-        'infographic-chunk', 
-        'Apon_Foundation_Constitution_Infographic', 
-        '#0f172a', // Dark background for PDF
-        (curr, total) => {
-           setProgress(`পিডিএফ প্রসেসিং: ${curr} / ${total}`);
-        }
-      );
-      
-      setIsDownloading(false);
-      setProgress('');
-    }, 100);
-  };
+export const ConstitutionInfographic: React.FC<Props> = ({ logoUrl, sections, settings }) => {
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Safe renderer that keeps text EXACTLY as is, just adds styling
   const renderLine = (line: string, index: number) => {
@@ -112,15 +92,6 @@ export const ConstitutionInfographic: React.FC<Props> = ({ logoUrl, sections }) 
           <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full blur-3xl"></div>
        </div>
 
-       {/* Loading Overlay */}
-       {isDownloading && (
-        <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center text-white backdrop-blur-md">
-           <Loader2 size={64} className="animate-spin mb-6 text-indigo-400" />
-           <h3 className="text-3xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-pink-400">ইনফোগ্রাফিক তৈরি হচ্ছে...</h3>
-           <p className="text-slate-400 font-mono text-lg border border-slate-700 px-4 py-1 rounded-full">{progress}</p>
-        </div>
-      )}
-
       {/* Header Bar */}
       <div className="sticky top-0 z-50 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 p-4 flex justify-between items-center shadow-lg">
          <div className="flex items-center gap-3">
@@ -132,17 +103,17 @@ export const ConstitutionInfographic: React.FC<Props> = ({ logoUrl, sections }) 
               <p className="text-xs text-indigo-300 font-mono uppercase tracking-widest">ডিজিটাল প্রেজেন্টেশন</p>
             </div>
          </div>
-         <button 
-            onClick={handleDownload}
-            disabled={isDownloading}
-            className="bg-white text-slate-900 px-4 py-2 rounded-full font-bold hover:bg-indigo-50 active:scale-95 transition-all flex items-center gap-2 shadow-lg disabled:opacity-50 text-sm md:text-base"
-          >
-            {isDownloading ? <Loader2 size={18} className="animate-spin"/> : <FileDown size={18}/>} 
-            <span>ডাউনলোড</span>
-          </button>
+         <div className="w-48">
+            <DownloadDropdown 
+              targetRef={contentRef} 
+              fileNamePrefix="Constitution_Infographic" 
+              settings={settings} 
+              logoUrl={logoUrl} 
+            />
+         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto p-4 md:p-8 space-y-8 relative z-10">
+      <div ref={contentRef} className="max-w-4xl mx-auto p-4 md:p-8 space-y-8 relative z-10">
         
         {/* Title Card */}
         <div className="infographic-chunk text-center py-12 px-4 bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl border border-slate-700 shadow-xl relative overflow-hidden">

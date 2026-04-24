@@ -1,24 +1,50 @@
 {
   "short_name": "Apon Foundation",
   "name": "Apon Foundation Management System",
+  "description": "Comprehensive management system for foundations, including member directories, finance, and ID Card generation.",
+  "categories": ["business", "productivity", "management"],
+  "id": "/?source=pwa",
+  "lang": "bn",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/10008/10008886.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/10008/10008886.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "https://cdn-icons-png.flaticon.com/512/10008/10008886.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     }
   ],
-  "start_url": "/",
+  "screenshots": [
+    {
+      "src": "https://via.placeholder.com/1920x1080/0f172a/ffffff?text=Foundation+Manager+Dashboard",
+      "sizes": "1920x1080",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "App Dashboard"
+    },
+    {
+      "src": "https://via.placeholder.com/1080x1920/0f172a/ffffff?text=Foundation+Manager+Mobile",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile Interface"
+    }
+  ],
+  "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "theme_color": "#2563eb",
+  "theme_color": "#064e3b",
   "background_color": "#ffffff"
 }

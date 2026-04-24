@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { FileText, CreditCard, Receipt, Printer, Image as ImageIcon, FileDown, PenTool, Scissors } from 'lucide-react';
 import { DocumentHeader } from './DocumentHeader';
-import { downloadAsPDF, downloadAsImage } from '../utils/downloadUtils';
+import { DownloadDropdown } from './DownloadDropdown';
+import { AppSettings } from '../types';
 
 interface Props {
   logoUrl: string | null;
+  settings: AppSettings;
 }
 
 type DocType = 'PAD' | 'RECEIPT' | 'VOUCHER';
 
-export const DocumentsGenerator: React.FC<Props> = ({ logoUrl }) => {
+export const DocumentsGenerator: React.FC<Props> = ({ logoUrl, settings }) => {
   const [activeDoc, setActiveDoc] = useState<DocType>('PAD');
+  const docRef = useRef<HTMLDivElement>(null);
   
   // Pad State
   const [padContent, setPadContent] = useState('');
@@ -46,7 +49,7 @@ export const DocumentsGenerator: React.FC<Props> = ({ logoUrl }) => {
             </div>
         )}
         
-        <DocumentHeader logoUrl={logoUrl} />
+        <DocumentHeader logoUrl={logoUrl} settings={settings} />
 
         <div className="relative z-10 flex-1 flex flex-col">
             <div className="flex justify-between items-center text-sm font-semibold text-slate-600 mb-6 border-b border-slate-200 pb-2">
@@ -371,19 +374,13 @@ export const DocumentsGenerator: React.FC<Props> = ({ logoUrl }) => {
                 <button onClick={() => window.print()} className="bg-slate-800 text-white py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-slate-900 font-medium">
                     <Printer size={18} /> প্রিন্ট করুন
                 </button>
-                <div className="grid grid-cols-2 gap-2">
-                     <button 
-                        onClick={() => downloadAsImage(activeDoc === 'PAD' ? 'official-pad' : activeDoc === 'RECEIPT' ? 'money-receipt' : 'expense-voucher', `Document_${activeDoc}`)} 
-                        className="bg-emerald-50 text-emerald-700 border border-emerald-200 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-emerald-100"
-                    >
-                        <ImageIcon size={18} /> ছবি
-                    </button>
-                    <button 
-                        onClick={() => downloadAsPDF(activeDoc === 'PAD' ? 'official-pad' : activeDoc === 'RECEIPT' ? 'money-receipt' : 'expense-voucher', `Document_${activeDoc}`)}
-                        className="bg-rose-50 text-rose-700 border border-rose-200 py-2 rounded-lg flex items-center justify-center gap-2 hover:bg-rose-100"
-                    >
-                        <FileDown size={18} /> পিডিএফ
-                    </button>
+                <div className="flex flex-col gap-2">
+                    <DownloadDropdown 
+                        targetRef={docRef} 
+                        fileNamePrefix={`Document_${activeDoc}`} 
+                        settings={settings} 
+                        logoUrl={logoUrl} 
+                    />
                 </div>
             </div>
         </div>
@@ -392,9 +389,11 @@ export const DocumentsGenerator: React.FC<Props> = ({ logoUrl }) => {
       {/* Preview Area */}
       <div className="lg:col-span-2 flex justify-center bg-slate-100 p-4 md:p-8 overflow-auto rounded-xl border border-slate-200 order-1 lg:order-2">
          <div className="a4-wrapper p-0 bg-transparent shadow-2xl scale-[0.8] md:scale-100 origin-top">
-             {activeDoc === 'PAD' && renderPad()}
-             {activeDoc === 'RECEIPT' && renderReceipt()}
-             {activeDoc === 'VOUCHER' && renderVoucher()}
+             <div ref={docRef}>
+                 {activeDoc === 'PAD' && renderPad()}
+                 {activeDoc === 'RECEIPT' && renderReceipt()}
+                 {activeDoc === 'VOUCHER' && renderVoucher()}
+             </div>
          </div>
       </div>
     </div>
