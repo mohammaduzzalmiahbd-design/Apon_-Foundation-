@@ -85,10 +85,13 @@ export interface AppSettings {
     address: string;
   };
   organization: {
-    foundingYear: string;
-    hqLocation: string;
+    name: string;
+    established: string;
+    foundingYear?: string;
+    hqLocation?: string;
     slogan: string;
-    registrationNo: string;
+    registration: string;
+    registrationNo?: string;
     objectives?: string[]; // Highlights for homepage
     bloodDonorBanner?: string; // Base64 or URL for the banner image
   };
