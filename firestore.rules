@@ -24,7 +24,11 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && isEmailVerified() && (getRole() == 'SUPER_ADMIN' || getRole() == 'ADMIN');
+      return isSignedIn() && isEmailVerified() && (
+        getRole() == 'SUPER_ADMIN' || 
+        getRole() == 'ADMIN' ||
+        request.auth.token.email == 'mohammaduzzalmiah.bd@gmail.com'
+      );
     }
 
     function isOwner(uid) {
@@ -50,8 +54,8 @@ service cloud.firestore {
 
     // --- Members Collection ---
     match /members/{memberId} {
-      // Everyone signed in can view members
-      allow read: if isSignedIn();
+      // Everyone can view members (Public Directory)
+      allow read: if true;
       // Only Admins and Super Admins can write
       allow write: if isAdmin() && isValidId(memberId);
     }
@@ -79,6 +83,24 @@ service cloud.firestore {
       allow read: if true;
       // Only Super Admins can modify settings
       allow write: if isSuperAdmin();
+    }
+
+    // --- Notices ---
+    match /notices/{noticeId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(noticeId);
+    }
+
+    // --- Transactions ---
+    match /transactions/{transactionId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin() && isValidId(transactionId);
+    }
+
+    // --- Constitution ---
+    match /constitution/{sectionId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidId(sectionId);
     }
   }
 }

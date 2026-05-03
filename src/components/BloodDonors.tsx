@@ -4,6 +4,9 @@ import { BloodDonor, AppSettings } from '../types';
 import { DownloadDropdown } from './DownloadDropdown';
 import { DocumentHeader } from './DocumentHeader';
 import { addBloodDonor } from '../services/firebase';
+import { compressImage } from '../lib/imageUtils';
+
+import { generateDeepLink } from '../lib/urlUtils';
 
 interface BloodDonorsProps {
   donors: BloodDonor[];
@@ -59,14 +62,27 @@ export const BloodDonors: React.FC<BloodDonorsProps> = ({ donors, setDonors, onD
     const file = e.target.files?.[0];
     if (file && onUpdateSettings) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        onUpdateSettings((prev: AppSettings) => ({
-          ...prev,
-          organization: {
-            ...prev.organization,
-            bloodDonorBanner: reader.result as string
-          }
-        }));
+      reader.onloadend = async () => {
+        try {
+          const compressed = await compressImage(reader.result as string, 1600, 900, 0.7);
+          onUpdateSettings((prev: AppSettings) => ({
+            ...prev,
+            organization: {
+              ...prev.organization,
+              bloodDonorBanner: compressed
+            }
+          }));
+        } catch (err) {
+          console.error("Compression failed", err);
+          // Fallback to original if compression fails, though unlikely
+          onUpdateSettings((prev: AppSettings) => ({
+            ...prev,
+            organization: {
+              ...prev.organization,
+              bloodDonorBanner: reader.result as string
+            }
+          }));
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -148,17 +164,20 @@ export const BloodDonors: React.FC<BloodDonorsProps> = ({ donors, setDonors, onD
   };
 
   const handleShare = () => {
-    const url = new URL(window.location.href);
-    url.searchParams.set('view', 'BLOOD_DONORS');
     const isRegister = activeTab === 'REGISTER';
-    url.searchParams.set('tab', isRegister ? 'register' : 'search');
+    const params: Record<string, string> = {
+      tab: isRegister ? 'register' : 'search'
+    };
+    
     if (selectedGroup) {
-      url.searchParams.set('group', selectedGroup);
+      params.group = selectedGroup;
     }
     
+    const url = generateDeepLink('BLOOD_DONORS', params);
+    
     const shareText = isRegister 
-      ? `রক্তদাতা হিসেবে নিবন্ধন করুন: ${url.toString()}`
-      : `রক্তদাতা অনুসন্ধান করুন: ${url.toString()}`;
+      ? `রক্তদাতা হিসেবে নিবন্ধন করুন: ${url}`
+      : `রক্তদাতা অনুসন্ধান করুন: ${url}`;
 
     navigator.clipboard.writeText(shareText);
     setLinkCopied(true);
@@ -167,35 +186,30 @@ export const BloodDonors: React.FC<BloodDonorsProps> = ({ donors, setDonors, onD
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-[#143d27] rounded-xl p-6 text-white shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-10">
-          <Droplet size={100} />
-        </div>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-[#1a4f33] rounded-lg border border-[#2a6f43] hidden md:block">
-              <Droplet className="text-red-500" size={32} />
-            </div>
-            <div>
-              <p className="text-yellow-500 text-sm font-medium">আপন ফাউন্ডেশন — মানবসেবায় আমরা</p>
-              <h2 className="text-2xl font-bold text-white">রক্তদাতা গ্রুপ</h2>
-            </div>
+      {/* Header Bar */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-red-50 rounded-xl text-red-500 border border-red-100">
+            <Droplet size={28} className="fill-red-500" />
           </div>
-
-          {!isPublic && (
-            <button 
-              onClick={handleShare}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg text-sm font-bold border border-white/20 transition-all group"
-            >
-              {linkCopied ? <CheckCircle size={16} className="text-emerald-400" /> : <Share2 size={16} className="group-hover:rotate-12 transition-transform" />}
-              {activeTab === 'REGISTER' ? 'নিবন্ধন লিংক শেয়ার করুন' : 'সার্চ লিংক শেয়ার করুন'}
-            </button>
-          )}
+          <div>
+            <h2 className="text-xl md:text-2xl font-bold text-slate-800">রক্তদাতা গ্রুপ</h2>
+            <p className="text-xs md:text-sm text-slate-500 font-medium">রক্তদান মহৎ কাজ — আপনার রক্তে বাঁচুক প্রাণ</p>
+          </div>
         </div>
+
+        {!isPublic && (
+          <button 
+            onClick={handleShare}
+            className="w-full md:w-auto flex items-center justify-center gap-2 bg-[#143d27] hover:bg-[#1a4f33] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-all active:scale-95 group"
+          >
+            {linkCopied ? <CheckCircle size={18} className="text-emerald-400" /> : <Share2 size={18} className="group-hover:rotate-12 transition-transform" />}
+            {activeTab === 'REGISTER' ? 'নিবন্ধন লিংক শেয়ার' : 'সার্চ লিংক শেয়ার'}
+          </button>
+        )}
       </div>
 
-      {/* Banner Section - Always visible at top for branding and access */}
+      {/* Main Banner Section */}
       <div className="max-w-4xl mx-auto">
         <div className="relative rounded-3xl overflow-hidden shadow-2xl group border-4 border-white">
           <div className={`aspect-[21/9] w-full relative ${!settings.organization.bloodDonorBanner ? 'bg-gradient-to-br from-red-600 via-red-700 to-emerald-800' : ''}`}>
@@ -205,6 +219,7 @@ export const BloodDonors: React.FC<BloodDonorsProps> = ({ donors, setDonors, onD
                 className="w-full h-full object-cover" 
                 alt="Blood Donation Banner" 
                 referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center p-8 md:p-12">
@@ -232,19 +247,19 @@ export const BloodDonors: React.FC<BloodDonorsProps> = ({ donors, setDonors, onD
               </div>
             )}
 
-            {/* Dark Overlay for better text readability if image exists */}
-            {settings.organization.bloodDonorBanner && (
+            {/* Dark Overlay for better text readability if image exists - REMOVED as per user request to show original banner text */}
+            {/* {settings.organization.bloodDonorBanner && (
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end p-6 md:p-10">
                 <div className="text-white space-y-1">
                   <h2 className="text-2xl md:text-4xl font-bold uppercase tracking-tight">রক্তদান জীবন বাঁচায়</h2>
                   <p className="text-white/80 text-sm md:text-base">আপনার দেওয়া রক্ত একজন মুমূর্ষু রোগীর জীবন বাঁচাতে পারে।</p>
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Admin Upload Control */}
             {isAdmin && (
-              <div className="absolute top-4 right-4 flex gap-2">
+              <div className="absolute top-4 right-4 flex gap-2 z-20">
                 <input 
                   type="file" 
                   ref={bannerRef}

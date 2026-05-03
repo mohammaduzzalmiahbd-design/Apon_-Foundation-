@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { Settings as SettingsIcon, Upload, Mail, Phone, MapPin, MessageCircle, Shield, Building, Save, CheckCircle, Key, User, UserCog, Trash2, Plus } from 'lucide-react';
+import { Settings as SettingsIcon, Upload, Mail, Phone, MapPin, MessageCircle, Shield, Building, Save, CheckCircle, Key, User, UserCog, Trash2, Plus, Droplet } from 'lucide-react';
 import { AppSettings } from '../types';
 import { AdminManagement } from './AdminManagement';
+import { compressImage } from '../lib/imageUtils';
 
 interface SettingsProps {
   settings: AppSettings;
@@ -16,13 +17,49 @@ export const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, 
   const [formData, setFormData] = useState<AppSettings>(settings);
   const [showNotification, setShowNotification] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        onUpdateLogo(reader.result as string);
+      reader.onloadend = async () => {
+        try {
+          const compressed = await compressImage(reader.result as string, 400, 400, 0.8);
+          onUpdateLogo(compressed);
+        } catch (err) {
+          console.error("Logo compression failed", err);
+          onUpdateLogo(reader.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const compressed = await compressImage(reader.result as string, 1600, 900, 0.7);
+          setFormData({
+            ...formData,
+            organization: {
+              ...formData.organization,
+              bloodDonorBanner: compressed
+            }
+          });
+        } catch (err) {
+          console.error("Banner compression failed", err);
+          setFormData({
+            ...formData,
+            organization: {
+              ...formData.organization,
+              bloodDonorBanner: reader.result as string
+            }
+          });
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -141,10 +178,69 @@ export const Settings: React.FC<SettingsProps> = ({ settings, onUpdateSettings, 
                 className="w-full p-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
               />
             </div>
-            {/* Homepage Objectives */}
+            {/* Homepage Highlights */}
             <div className="pt-4 border-t border-slate-100">
-              <label className="block text-sm font-medium text-slate-700 mb-2">হোমপেজ হাইলাইটস (লক্ষ্য ও উদ্দেশ্য)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">হোমপেজ হাইলাইটস (সংক্ষিপ্ত পরিচিতি ও লক্ষ্য)</label>
+              
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">সংক্ষিপ্ত পরিচিতি</label>
+                <textarea 
+                  value={formData.organization.intro || ''}
+                  onChange={e => setFormData({...formData, organization: {...formData.organization, intro: e.target.value}})}
+                  placeholder="ফাউন্ডেশনের সংক্ষিপ্ত পরিচিতি লিখুন (হোমপেজে দৃশ্যমান হবে)"
+                  className="w-full p-2.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none h-24"
+                />
+              </div>
+
+              {/* Blood Donor Settings */}
+              <div className="mb-6 p-4 bg-red-50 rounded-xl border border-red-100">
+                <label className="block text-sm font-bold text-red-800 mb-3 flex items-center gap-2">
+                  <Droplet size={16} /> রক্তদাতা পেজ সেটিংস (পাবলিক শেয়ারিং)
+                </label>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-red-600 uppercase mb-1 text-right">ব্যানার ইমেজ আপলোড</label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text"
+                        value={formData.organization.bloodDonorBanner || ''}
+                        onChange={e => setFormData({...formData, organization: {...formData.organization, bloodDonorBanner: e.target.value}})}
+                        placeholder="https://example.com/banner.jpg"
+                        className="flex-1 p-2.5 border border-red-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 outline-none"
+                      />
+                      <input 
+                        type="file" 
+                        ref={bannerInputRef}
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={handleBannerUpload}
+                      />
+                      <button 
+                        type="button"
+                        onClick={() => bannerInputRef.current?.click()}
+                        className="px-3 py-2 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors flex items-center gap-1 text-xs font-bold"
+                      >
+                        <Upload size={14} /> আপলোড
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-red-500 mt-1">* সোশ্যাল মিডিয়াতে শেয়ার করলে এই ইমেজটি প্রিভিউ হিসেবে দেখা যাবে (Compressed recommended)।</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-bold text-red-600 uppercase mb-1">শেয়ারিং ডেসক্রিপশন</label>
+                    <textarea 
+                      value={formData.organization.bloodDonorDescription || ''}
+                      onChange={e => setFormData({...formData, organization: {...formData.organization, bloodDonorDescription: e.target.value}})}
+                      placeholder="রক্তদান জীবন বাঁচায় - আমাদের সাথে রক্তদাতা হিসেবে নিবন্ধন করুন বা রক্তদাতা খুঁজুন।"
+                      className="w-full p-2.5 border border-red-200 rounded-lg text-sm focus:ring-2 focus:ring-red-500 outline-none h-20"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">লক্ষ্যসমূহ (পয়েন্ট আকারে)</label>
                 {(formData.organization.objectives || []).map((obj, i) => (
                   <div key={i} className="flex gap-2">
                     <input 

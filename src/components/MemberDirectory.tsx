@@ -200,6 +200,14 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
         )}
 
         <div className="flex gap-2">
+           {isAdmin && viewMode === 'GRID' && (
+             <button 
+               onClick={openAddForm}
+               className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm font-bold text-sm transition-all"
+             >
+               <Plus size={18} /> সদস্য যোগ করুন
+             </button>
+           )}
            <div className="flex bg-white rounded-lg border border-indigo-100 p-1">
              <button 
                onClick={() => setViewMode('GRID')}
@@ -485,14 +493,16 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 no-print">
-                    <button onClick={() => handleEditMember(member)} className="bg-white text-emerald-600 p-2 rounded-full shadow-md hover:bg-emerald-50 border border-emerald-100 transition-colors" title="সম্পাদনা করুন">
-                      <span className="flex items-center justify-center w-4 h-4 text-xs font-bold leading-none">✎</span>
-                    </button>
-                    <button onClick={() => onDeleteMember(member.id)} className="bg-white text-rose-500 p-2 rounded-full shadow-md hover:bg-rose-50 border border-rose-100 transition-colors" title="মুছে ফেলুন">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="absolute top-4 right-4 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 no-print">
+                      <button onClick={() => handleEditMember(member)} className="bg-white text-emerald-600 p-2 rounded-full shadow-md hover:bg-emerald-50 border border-emerald-100 transition-colors" title="সম্পাদনা করুন">
+                        <span className="flex items-center justify-center w-4 h-4 text-xs font-bold leading-none">✎</span>
+                      </button>
+                      <button onClick={() => onDeleteMember(member.id)} className="bg-white text-rose-500 p-2 rounded-full shadow-md hover:bg-rose-50 border border-rose-100 transition-colors" title="মুছে ফেলুন">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
               
@@ -570,22 +580,24 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
                                     )}
                                     
                                     {/* Action Buttons */}
-                                    <div className="flex flex-col items-center gap-1 mt-1 no-print">
-                                      <button 
-                                        onClick={() => triggerTableUpload(member.id)}
-                                        className="text-[10px] bg-slate-200 hover:bg-slate-300 px-1.5 py-0.5 rounded text-slate-600 flex items-center gap-1"
-                                        title="ছবি পরিবর্তন করুন"
-                                      >
-                                        <Camera size={10} /> ছবি
-                                      </button>
-                                      <button 
-                                        onClick={() => handleEditMember(member)}
-                                        className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1"
-                                        title="সম্পাদনা করুন"
-                                      >
-                                        <span className="font-bold">✎</span> এডিট
-                                      </button>
-                                    </div>
+                                    {isAdmin && (
+                                      <div className="flex flex-col items-center gap-1 mt-1 no-print">
+                                        <button 
+                                          onClick={() => triggerTableUpload(member.id)}
+                                          className="text-[10px] bg-slate-200 hover:bg-slate-300 px-1.5 py-0.5 rounded text-slate-600 flex items-center gap-1"
+                                          title="ছবি পরিবর্তন করুন"
+                                        >
+                                          <Camera size={10} /> ছবি
+                                        </button>
+                                        <button 
+                                          onClick={() => handleEditMember(member)}
+                                          className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1"
+                                          title="সম্পাদনা করুন"
+                                        >
+                                          <span className="font-bold">✎</span> এডিট
+                                        </button>
+                                      </div>
+                                    )}
                                   </div>
                                 </td>
                                 <td className="border border-slate-300 p-2 font-bold text-slate-800">{member.name}</td>

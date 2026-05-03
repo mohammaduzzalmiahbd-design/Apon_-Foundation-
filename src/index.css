@@ -1,17 +1,14 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&display=swap');
-
-/* Basic reset and global styles */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700;800;900&family=Amiri:wght@400;700&display=swap');
 
 :root {
-  --foundation-dark: #143d27;
-  --foundation-green: #1a4f33;
+  --foundation-dark: #004d26;
+  --foundation-green: #006633;
+  --foundation-red: #cc0000;
 }
 
 body {
-  font-family: 'Inter', 'Noto Sans Bengali', sans-serif;
+  font-family: 'Noto Sans Bengali', 'Inter', sans-serif;
   overflow-x: hidden;
 }
 

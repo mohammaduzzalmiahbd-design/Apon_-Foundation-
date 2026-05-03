@@ -4,6 +4,8 @@ import { Member, AppSettings } from '../types';
 import QRCode from 'qrcode';
 import { DownloadDropdown } from './DownloadDropdown';
 
+import { BrandText } from './BrandText';
+
 interface Props {
   members: Member[];
   logoUrl: string | null;
@@ -97,15 +99,15 @@ export const IDCardGenerator: React.FC<Props> = ({ members, logoUrl, settings })
         <div className="flex items-center gap-[2mm] px-[2.5mm] py-[1mm] mb-[0.5mm] bg-white/95 shadow-sm">
           <div className="w-[11mm] h-[11mm] bg-white rounded-full shrink-0 flex items-center justify-center p-[0.6mm] border border-slate-200">
              {logoUrl ? (
-               <img src={logoUrl} className="w-full h-full object-contain rounded-full" referrerPolicy="no-referrer" />
+               <img src={logoUrl} className="w-full h-full object-contain rounded-full" referrerPolicy="no-referrer" crossOrigin="anonymous" />
              ) : (
                <div className="w-full h-full bg-slate-100 rounded-full flex items-center justify-center text-[3px] text-slate-400 uppercase">Logo</div>
              )}
           </div>
           <div className="flex flex-col flex-1 leading-[1]">
-            <h2 className="text-[14px] font-bold font-bengali tracking-tight transform translate-y-[-1.2mm]">
-              <span className="text-[#143d27]">আপন</span> <span className="text-[#991b1b]">ফাউন্ডেশন</span>
-            </h2>
+            <h1 className="text-[14px] font-bold font-bengali tracking-tight transform translate-y-[-1.2mm]">
+              <BrandText text="আপন ফাউন্ডেশন" />
+            </h1>
             <p className="text-[7px] text-slate-600 font-bold font-bengali leading-none">বালীগাঁও, অষ্টগ্রাম, কিশোরগঞ্জ</p>
           </div>
         </div>
@@ -114,7 +116,7 @@ export const IDCardGenerator: React.FC<Props> = ({ members, logoUrl, settings })
         <div className="flex justify-center -mt-[0.5mm] mb-[0.2mm]">
           <div className="w-[16mm] h-[16mm] bg-slate-800 border-[1.2mm] border-white/50 rounded-full overflow-hidden shadow-xl ring-2 ring-black/10">
             {member.profileImage ? (
-              <img src={member.profileImage} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              <img src={member.profileImage} className="w-full h-full object-cover" referrerPolicy="no-referrer" crossOrigin="anonymous" />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center text-slate-600 bg-slate-200">
                 <User size={13} />
@@ -257,6 +259,7 @@ export const IDCardGenerator: React.FC<Props> = ({ members, logoUrl, settings })
             {/* The printable A4 Container */}
             <div 
               ref={gridRef}
+              id="id-card-grid"
               className="a4-grid-container bg-white shadow-2xl relative overflow-hidden"
               style={{
                 width: '210mm',

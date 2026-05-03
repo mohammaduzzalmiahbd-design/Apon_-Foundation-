@@ -89,11 +89,13 @@ export interface AppSettings {
     established: string;
     foundingYear?: string;
     hqLocation?: string;
+    intro?: string;
     slogan: string;
     registration: string;
     registrationNo?: string;
     objectives?: string[]; // Highlights for homepage
-    bloodDonorBanner?: string; // Base64 or URL for the banner image
+    bloodDonorBanner?: string; // URL for the banner image
+    bloodDonorDescription?: string; // Meta description for social sharing
   };
   admin: {
     username: string;

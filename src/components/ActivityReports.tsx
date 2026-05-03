@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { BookOpen, Stethoscope, Snowflake, Trophy, Heart, Image as ImageIcon, FileDown, Calendar, Printer, PieChart, CheckCircle2 } from 'lucide-react';
 import { Transaction, AppSettings } from '../types';
 import { DocumentHeader } from './DocumentHeader';
+import { DocumentFooter } from './DocumentFooter';
 import { DownloadDropdown } from './DownloadDropdown';
 
 interface Props {
@@ -230,25 +231,22 @@ export const ActivityReports: React.FC<Props> = ({ transactions, logoUrl, settin
                 </div>
 
                 {/* Footer Signatures */}
-                <div className="relative z-10 mt-auto pt-16 flex justify-between items-end gap-8">
+                <div className="relative z-10 mt-6 flex justify-between items-end gap-8 mb-6">
                     <div className="text-center flex-1">
                         <div className="border-t border-dashed border-slate-400 mb-1 mx-auto w-32"></div>
-                        <p className="text-xs font-bold text-slate-600">কোষাধ্যক্ষ</p>
+                        <p className="text-[10px] font-bold text-slate-600">কোষাধ্যক্ষ</p>
                     </div>
                     <div className="text-center flex-1">
                         <div className="border-t border-dashed border-slate-400 mb-1 mx-auto w-32"></div>
-                        <p className="text-xs font-bold text-slate-600">সাধারণ সম্পাদক</p>
+                        <p className="text-[10px] font-bold text-slate-600">সাধারণ সম্পাদক</p>
                     </div>
                     <div className="text-center flex-1">
                         <div className="border-t border-dashed border-slate-400 mb-1 mx-auto w-32"></div>
-                        <p className="text-xs font-bold text-slate-600">সভাপতি</p>
+                        <p className="text-[10px] font-bold text-slate-600">সভাপতি</p>
                     </div>
                 </div>
                 
-                {/* System Footer */}
-                <div className="relative z-10 mt-8 pt-2 border-t border-slate-200 text-center text-[10px] text-slate-400">
-                    রিপোর্ট জেনারেট করা হয়েছে: {new Date().toLocaleDateString('bn-BD')} | আপন ফাউন্ডেশন ম্যানেজমেন্ট সিস্টেম
-                </div>
+                <DocumentFooter settings={settings} />
             </div>
         </div>
       </div>

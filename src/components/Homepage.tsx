@@ -3,7 +3,8 @@ import {
   Heart, Users, TrendingUp, Calendar, ArrowRight, 
   MapPin, Mail, Phone, MessageCircle, Info, 
   ExternalLink, Bell, CreditCard, ShieldCheck, Globe,
-  PieChart as PieChartIcon, BarChart as BarChartIcon
+  PieChart as PieChartIcon, BarChart as BarChartIcon,
+  Facebook, Instagram, Twitter, MessageSquare
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -11,6 +12,8 @@ import {
 } from 'recharts';
 import { Member, Transaction, AppSettings } from '../types';
 import { OrganizationChart } from './OrganizationChart';
+
+import { BrandText, BrandNameEn } from './BrandText';
 
 interface HomepageProps {
   settings: AppSettings;
@@ -82,8 +85,8 @@ export const Homepage: React.FC<HomepageProps> = ({
     <div className="space-y-10 animate-fade-in pb-12">
       
       {/* 1. Hero Section */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#143d27] via-[#1a4f33] to-[#0f2d1d] p-8 md:p-12 text-white shadow-2xl">
-        <div className="absolute top-0 right-0 p-8 opacity-10 transform scale-150 rotate-12">
+      <section className="relative overflow-hidden rounded-3xl bg-white p-8 md:p-12 text-slate-800 shadow-xl border border-slate-100">
+        <div className="absolute top-0 right-0 p-8 opacity-[0.03] transform scale-150 rotate-12">
           {logoUrl ? (
             <img src={logoUrl} className="w-64 h-64 object-contain grayscale blur-sm" />
           ) : (
@@ -92,7 +95,7 @@ export const Homepage: React.FC<HomepageProps> = ({
         </div>
         
         <div className="relative z-10 flex flex-col md:flex-row items-center gap-10">
-          <div className="w-32 h-32 md:w-48 md:h-48 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 p-4 shadow-inner flex items-center justify-center overflow-hidden">
+          <div className="w-32 h-32 md:w-48 md:h-48 rounded-2xl bg-slate-50 border border-slate-100 p-4 shadow-sm flex items-center justify-center overflow-hidden">
             {logoUrl ? (
               <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
             ) : (
@@ -101,20 +104,20 @@ export const Homepage: React.FC<HomepageProps> = ({
           </div>
           
           <div className="text-center md:text-left space-y-4">
-            <h1 className="text-4xl md:text-6xl font-black font-bengali tracking-tight">
-              আপন <span className="text-yellow-500">ফাউন্ডেশন</span>
+            <h1 className="text-4xl md:text-6xl font-black font-bengali tracking-tight text-slate-900">
+              <BrandText text="আপন ফাউন্ডেশন" />
             </h1>
-            <p className="text-lg md:text-2xl text-green-100 font-medium font-bengali opacity-90 italic">
+            <p className="text-lg md:text-2xl text-slate-500 font-medium font-bengali opacity-90 italic">
               — {settings.organization.slogan || 'মানব সেবায় আমরা'}
             </p>
             
             <div className="flex flex-wrap justify-center md:justify-start gap-4 pt-4">
-               <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/10 text-sm">
-                  <Calendar size={16} className="text-yellow-400" />
+               <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-full border border-slate-100 text-sm text-slate-600 font-bold">
+                  <Calendar size={16} className="text-yellow-600" />
                   <span>প্রতিষ্ঠা: {settings.organization.foundingYear || '২০২৫'}</span>
                </div>
-               <div className="flex items-center gap-2 bg-white/10 px-4 py-2 rounded-full border border-white/10 text-sm">
-                  <MapPin size={16} className="text-yellow-400" />
+               <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-full border border-slate-100 text-sm text-slate-600 font-bold">
+                  <MapPin size={16} className="text-yellow-600" />
                   <span>{settings.organization.hqLocation || 'বালীগাঁও, অষ্টগ্রাম, কিশোরগঞ্জ'}</span>
                </div>
             </div>
@@ -129,23 +132,27 @@ export const Homepage: React.FC<HomepageProps> = ({
         <div className="lg:col-span-8 space-y-8">
           <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100 h-full">
             <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-green-100 text-[#143d27] rounded-xl">
+              <div className="p-3 bg-blue-100 text-blue-900 rounded-xl">
                 <Info size={24} />
               </div>
               <h2 className="text-2xl font-bold text-slate-800 font-bengali">সংক্ষিপ্ত পরিচিতি ও লক্ষ্য</h2>
             </div>
             
             <p className="text-slate-600 leading-relaxed font-bengali mb-8">
-              "আপন ফাউন্ডেশন" একটি অরাজনৈতিক ও অলাভজনক সামাজিক সংগঠন। এটি মূলত মানবিক সহায়তা, সমাজ সংস্কার এবং তৃণমূল পর্যায়ের মানুষদের জীবনমান উন্নয়নে কাজ করে। সংগঠনের প্রধান কার্যালয় বালীগাঁও, অষ্টগ্রাম এ অবস্থিত। আমাদের লক্ষ্য একটি আদর্শ ও বৈষম্যমুক্ত সমাজ গঠন করা।
+              {settings.organization.intro || (
+                <>
+                  "<BrandText text="আপন ফাউন্ডেশন" />" একটি অরাজনৈতিক ও অলাভজনক সামাজিক সংগঠন। এটি মূলত মানবিক সহায়তা, সমাজ সংস্কার এবং তৃণমূল পর্যায়ের মানুষদের জীবনমান উন্নয়নে কাজ করে। সংগঠনের প্রধান কার্যালয় বালীগাঁও, অষ্টগ্রাম এ অবস্থিত। আমাদের লক্ষ্য একটি আদর্শ ও বৈষম্যমুক্ত সমাজ গঠন করা।
+                </>
+              )}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {goals.map((goal, i) => (
-                <div key={i} className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200 transition-hover hover:border-[#143d27]/30 hover:bg-[#143d27]/5 group">
-                  <div className="mt-1 w-5 h-5 rounded-full bg-[#143d27] text-white flex items-center justify-center text-[10px] shrink-0 font-bold">
+                <div key={i} className="flex items-start gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200 transition-hover hover:border-slate-300 hover:bg-slate-100 group">
+                  <div className="mt-1 w-5 h-5 rounded-full bg-slate-800 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">
                     {i + 1}
                   </div>
-                  <p className="text-sm font-medium text-slate-700 font-bengali group-hover:text-[#143d27]">{goal}</p>
+                  <p className="text-sm font-medium text-slate-700 font-bengali group-hover:text-slate-950">{goal}</p>
                 </div>
               ))}
             </div>
@@ -169,40 +176,40 @@ export const Homepage: React.FC<HomepageProps> = ({
              </h2>
              
              <div className="space-y-6">
-                <div className="flex items-center justify-between p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                   <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-600 text-white rounded-lg"><Users size={20}/></div>
-                      <span className="text-sm font-bold text-blue-900">মোট সদস্য</span>
-                   </div>
-                   <span className="text-2xl font-black text-blue-600">{members.length}</span>
-                </div>
+           <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <div className="flex items-center gap-3">
+                 <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Users size={20}/></div>
+                 <span className="text-sm font-bold text-slate-700">মোট সদস্য</span>
+              </div>
+              <span className="text-2xl font-black text-blue-600">{members.length}</span>
+           </div>
 
-                <div className="flex items-center justify-between p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                   <div className="flex items-center gap-3">
-                      <div className="p-2 bg-emerald-600 text-white rounded-lg"><TrendingUp size={20}/></div>
-                      <span className="text-sm font-bold text-emerald-900">গড় উপস্থিতি</span>
-                   </div>
-                   <span className="text-2xl font-black text-emerald-600">৮৫%</span>
-                </div>
+           <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <div className="flex items-center gap-3">
+                 <div className="p-2 bg-slate-200 text-slate-600 rounded-lg"><TrendingUp size={20}/></div>
+                 <span className="text-sm font-bold text-slate-700">গড় উপস্থিতি</span>
+              </div>
+              <span className="text-2xl font-black text-slate-600">৮৫%</span>
+           </div>
 
-                <div className="pt-4 border-t border-slate-100">
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">অ্যাকশন</p>
-                  <div className="grid grid-cols-1 gap-3">
-                    <button 
-                      onClick={() => onNavigate('FINANCE')}
-                      className="w-full flex items-center justify-center gap-3 py-4 bg-green-600 hover:bg-green-700 text-white rounded-2xl font-bold shadow-lg transition-all active:scale-95"
-                    >
-                      <Heart size={20} /> অনুদান দিন
-                    </button>
-                    <button 
-                      onClick={() => onNavigate('FORM')}
-                      className="w-full flex items-center justify-center gap-3 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold shadow-lg transition-all active:scale-95"
-                    >
-                      <Users size={20} /> সদস্য হোন
-                    </button>
-                  </div>
-                </div>
+           <div className="pt-4 border-t border-slate-100">
+             <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">অ্যাকশন</p>
+             <div className="grid grid-cols-1 gap-3">
+               <button 
+                 onClick={() => onNavigate('FINANCE')}
+                 className="w-full flex items-center justify-center gap-3 py-4 bg-slate-800 hover:bg-slate-900 text-white rounded-2xl font-bold shadow-lg transition-all active:scale-95"
+               >
+                 <Heart size={20} className="text-red-500" /> অনুদান দিন
+               </button>
+               <button 
+                 onClick={() => onNavigate('FORM')}
+                 className="w-full flex items-center justify-center gap-3 py-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-800 rounded-2xl font-bold shadow-md transition-all active:scale-95"
+               >
+                 <Users size={20} className="text-blue-500" /> সদস্য হোন
+               </button>
              </div>
+           </div>
+        </div>
           </div>
         </div>
       </div>
@@ -275,7 +282,7 @@ export const Homepage: React.FC<HomepageProps> = ({
             </h2>
             <button 
               onClick={() => onNavigate('NOTICE')}
-              className="text-[#143d27] font-bold text-sm flex items-center gap-1 hover:underline underline-offset-4"
+              className="text-slate-900 font-bold text-sm flex items-center gap-1 hover:underline underline-offset-4"
             >
               সবগুলো দেখুন <ArrowRight size={16} />
             </button>
@@ -308,71 +315,121 @@ export const Homepage: React.FC<HomepageProps> = ({
       </section>
 
       {/* 5. Footer Contact Info */}
-      <footer className="bg-slate-900 rounded-3xl p-8 md:p-12 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute bottom-0 right-0 p-8 opacity-5">
-           <ShieldCheck size={120} />
+      <footer className="bg-white border border-slate-200 rounded-3xl p-8 md:p-12 text-slate-800 shadow-sm relative overflow-hidden">
+        <div className="absolute bottom-0 right-0 p-8 opacity-[0.02]">
+           {logoUrl ? <img src={logoUrl} className="w-64 h-64 object-contain" /> : <ShieldCheck size={120} />}
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 relative z-10">
            <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
-                 <ShieldCheck className="text-yellow-500" size={32} />
-                 <h3 className="text-xl font-black tracking-tighter">APON FOUNDATION</h3>
+                 <ShieldCheck className="text-yellow-600" size={32} />
+                 <h3 className="text-xl font-black tracking-tighter"><BrandNameEn /></h3>
               </div>
-              <p className="text-slate-400 text-xs leading-relaxed italic">
+              <p className="text-slate-500 text-xs leading-relaxed italic">
                  আমাদের লক্ষ্য মানবতার সেবায় একতাবদ্ধ হয়ে কাজ করা এবং সমাজ থেকে দারিদ্র্য ও অন্ধকার দূর করা।
               </p>
            </div>
 
            <div className="space-y-4">
-              <h4 className="font-bold text-sm text-yellow-500 uppercase tracking-widest">ঠিকানা</h4>
+              <h4 className="font-bold text-sm text-yellow-600 uppercase tracking-widest">ঠিকানা</h4>
               <div className="flex items-start gap-3">
-                 <MapPin className="text-blue-400 shrink-0" size={18} />
-                 <p className="text-xs text-slate-300">{settings.contact.address}</p>
+                 <MapPin className="text-blue-500 shrink-0" size={18} />
+                 <p className="text-xs text-slate-600">{settings.contact.address}</p>
               </div>
            </div>
 
            <div className="space-y-4">
-              <h4 className="font-bold text-sm text-yellow-500 uppercase tracking-widest">যোগাযোগ</h4>
+              <h4 className="font-bold text-sm text-yellow-600 uppercase tracking-widest">যোগাযোগ</h4>
               <div className="space-y-2">
                  <div className="flex items-center gap-3">
-                    <Mail className="text-red-400 shrink-0" size={16} />
-                    <span className="text-xs text-slate-300">{settings.contact.email}</span>
+                    <Mail className="text-red-500 shrink-0" size={16} />
+                    <span className="text-xs text-slate-600">{settings.contact.email}</span>
                  </div>
                  <div className="flex items-center gap-3">
-                    <Phone className="text-green-400 shrink-0" size={16} />
-                    <span className="text-xs text-slate-300">{settings.contact.phone}</span>
+                    <Phone className="text-slate-600 shrink-0" size={16} />
+                    <span className="text-xs text-slate-600">{settings.contact.phone}</span>
                  </div>
                  <div className="flex items-center gap-3">
-                    <MessageCircle className="text-emerald-400 shrink-0" size={16} />
-                    <span className="text-xs text-slate-300">{settings.contact.whatsapp}</span>
+                    <MessageCircle className="text-blue-500 shrink-0" size={16} />
+                    <span className="text-xs text-slate-600">{settings.contact.whatsapp}</span>
                  </div>
               </div>
            </div>
 
-           <div className="space-y-6">
-              <h4 className="font-bold text-sm text-yellow-500 uppercase tracking-widest">সংযুক্ত থাকুন</h4>
-              <div className="flex gap-3">
+           <div className="space-y-4">
+              <h4 className="font-bold text-sm text-yellow-600 uppercase tracking-widest">সংযুক্ত থাকুন</h4>
+              <div className="flex flex-col gap-3">
                  {settings.socialLinks?.facebook && (
-                   <a href={settings.socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="p-3 bg-white/10 rounded-xl hover:bg-blue-600 transition-colors">
-                     <Globe size={18} />
+                   <a 
+                    href={settings.socialLinks.facebook} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="flex items-center gap-3 text-slate-600 hover:text-[#006633] transition-colors group"
+                   >
+                     <Facebook size={20} className="group-hover:text-[#006633]" />
+                     <span className="text-xs font-medium">Facebook</span>
                    </a>
                  )}
-                 <button onClick={() => onNavigate('ABOUT_US')} className="p-3 bg-white/10 rounded-xl hover:bg-slate-700 transition-colors">
-                   <Info size={18} />
-                 </button>
+                 {settings.socialLinks?.whatsapp && (
+                   <a 
+                    href={settings.socialLinks.whatsapp} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="flex items-center gap-3 text-slate-600 hover:text-[#006633] transition-colors group"
+                   >
+                     <MessageCircle size={20} className="group-hover:text-[#006633]" />
+                     <span className="text-xs font-medium">WhatsApp</span>
+                   </a>
+                 )}
+                 {settings.socialLinks?.messenger && (
+                    <a 
+                    href={settings.socialLinks.messenger} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="flex items-center gap-3 text-slate-600 hover:text-[#006633] transition-colors group"
+                   >
+                     <MessageSquare size={20} className="group-hover:text-[#006633]" />
+                     <span className="text-xs font-medium">Messenger</span>
+                   </a>
+                 )}
+                 {settings.socialLinks?.instagram && (
+                    <a 
+                    href={settings.socialLinks.instagram} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="flex items-center gap-3 text-slate-600 hover:text-[#006633] transition-colors group"
+                   >
+                     <Instagram size={20} className="group-hover:text-[#006633]" />
+                     <span className="text-xs font-medium">Instagram</span>
+                   </a>
+                 )}
+                 {settings.socialLinks?.twitter && (
+                    <a 
+                    href={settings.socialLinks.twitter} 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    className="flex items-center gap-3 text-slate-600 hover:text-[#006633] transition-colors group"
+                   >
+                     <Twitter size={20} className="group-hover:text-[#006633]" />
+                     <span className="text-xs font-medium">Twitter / X</span>
+                   </a>
+                 )}
+                 {!settings.socialLinks?.facebook && !settings.socialLinks?.whatsapp && !settings.socialLinks?.messenger && !settings.socialLinks?.instagram && !settings.socialLinks?.twitter && (
+                   <p className="text-xs text-slate-400 italic">কোন লিংক যুক্ত করা নেই</p>
+                 )}
               </div>
            </div>
         </div>
         
-        <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
-           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-              © 2025 APON FOUNDATION • ALL RIGHTS RESERVED
+        <div className="mt-12 pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+              © 2025 <BrandNameEn /> • ALL RIGHTS RESERVED
            </p>
-           <div className="flex items-center gap-4 text-slate-500 text-[10px] font-bold uppercase">
-              <span className="hover:text-white cursor-pointer transition-colors">Terms</span>
-              <span className="hover:text-white cursor-pointer transition-colors">Privacy</span>
-              <span className="hover:text-white cursor-pointer transition-colors">Digital Management</span>
+           <div className="flex items-center gap-4 text-slate-400 text-[10px] font-bold uppercase">
+              <span className="hover:text-slate-800 cursor-pointer transition-colors">Terms</span>
+              <span className="hover:text-slate-800 cursor-pointer transition-colors">Privacy</span>
+              <span className="hover:text-slate-800 cursor-pointer transition-colors">Digital Management</span>
            </div>
         </div>
       </footer>

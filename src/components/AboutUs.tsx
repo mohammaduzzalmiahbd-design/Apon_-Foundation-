@@ -2,6 +2,7 @@ import React from 'react';
 import { Info, MapPin, Mail, Phone, MessageCircle, Target, Heart, Shield, Calendar, Building } from 'lucide-react';
 
 import { AppSettings } from '../types';
+import { BrandText, BrandName } from './BrandText';
 
 interface AboutUsProps {
   logoUrl: string | null;
@@ -12,15 +13,15 @@ export const AboutUs: React.FC<AboutUsProps> = ({ logoUrl, settings }) => {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="bg-gradient-to-br from-[#143d27] to-[#1a4f33] rounded-xl p-8 text-white shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-10">
+      <div className="bg-white rounded-xl p-8 text-slate-800 shadow-sm border border-slate-200 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-4 opacity-[0.03]">
           <Info size={120} />
         </div>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
           <div className="flex items-center gap-4">
             <div>
-              <p className="text-yellow-500 text-sm font-medium tracking-wider uppercase">আমাদের সম্পর্কে</p>
-              <h2 className="text-3xl font-bold text-white mt-1">আপন ফাউন্ডেশন</h2>
+              <p className="text-yellow-600 text-sm font-black tracking-widest uppercase mb-1">আমাদের সম্পর্কে</p>
+              <h2 className="text-3xl font-black text-slate-900"><BrandText text="আপন ফাউন্ডেশন" /></h2>
             </div>
           </div>
         </div>
@@ -32,14 +33,14 @@ export const AboutUs: React.FC<AboutUsProps> = ({ logoUrl, settings }) => {
           {/* Intro Card */}
           <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-green-100 text-green-600 rounded-lg">
+              <div className="p-2 bg-slate-100 text-slate-600 rounded-lg">
                 <Shield size={24} />
               </div>
               <h3 className="text-xl font-bold text-slate-800">ফাউন্ডেশনের পরিচিতি</h3>
             </div>
             <div className="space-y-4 text-slate-600 leading-relaxed">
               <p>
-                <strong className="text-slate-800">নাম:</strong> আপন ফাউন্ডেশন
+                <strong className="text-slate-800">নাম:</strong> <BrandText text="আপন ফাউন্ডেশন" />
               </p>
               <p>
                 <strong className="text-slate-800">প্রকৃতি:</strong> অলাভজনক সামাজিক ও মানবিক সংস্থা
@@ -94,7 +95,7 @@ export const AboutUs: React.FC<AboutUsProps> = ({ logoUrl, settings }) => {
                 <Shield size={40} className="text-slate-300" />
               )}
             </div>
-            <h3 className="text-xl font-bold text-[#143d27]">আপন ফাউন্ডেশন</h3>
+            <h3 className="text-xl font-bold text-slate-800"><BrandName /></h3>
             <p className="text-yellow-600 font-medium mt-1">"{settings.organization.slogan}"</p>
           </div>
 

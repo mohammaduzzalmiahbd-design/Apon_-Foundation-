@@ -28,7 +28,7 @@ import {
   Firestore,
   CACHE_SIZE_UNLIMITED
 } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
+import firebaseConfig from '../../firebase-applet-config.json';
 
 // --- Error Handling & Metrics ---
 interface FirestoreErrorInfo {
@@ -310,6 +310,58 @@ export const deleteBloodDonor = async (id: string) => {
   }
 };
 
+// --- Generic Collections Management ---
+export const getCollectionData = async (collectionName: string): Promise<any[]> => {
+  try {
+    const ref = collection(db, collectionName);
+    const snapshot = await getDocs(ref);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    handleFirestoreError(error, 'list', collectionName);
+    return [];
+  }
+};
+
+export const upsertDocument = async (collectionName: string, id: string, data: any) => {
+  try {
+    const docRef = doc(db, collectionName, id);
+    await setDoc(docRef, {
+      ...data,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    return { success: true };
+  } catch (error) {
+    handleFirestoreError(error, 'write', `${collectionName}/${id}`);
+    throw error;
+  }
+};
+
+export const deleteDocument = async (collectionName: string, id: string) => {
+  try {
+    await deleteDoc(doc(db, collectionName, id));
+    return { success: true };
+  } catch (error) {
+    handleFirestoreError(error, 'delete', `${collectionName}/${id}`);
+    throw error;
+  }
+};
+
+// Specific helpers for cleanliness
+export const getMembers = () => getCollectionData('members');
+export const updateMember = (id: string, data: any) => upsertDocument('members', id, data);
+export const deleteMember = (id: string) => deleteDocument('members', id);
+
+export const getTransactions = () => getCollectionData('transactions');
+export const updateTransaction = (id: string, data: any) => upsertDocument('transactions', id, data);
+export const deleteTransaction = (id: string) => deleteDocument('transactions', id);
+
+export const getNotices = () => getCollectionData('notices');
+export const updateNotice = (id: string, data: any) => upsertDocument('notices', id, data);
+export const deleteNotice = (id: string) => deleteDocument('notices', id);
+
+export const getConstitution = () => getCollectionData('constitution');
+export const updateConstitutionSection = (id: string, data: any) => upsertDocument('constitution', id, data);
+
 // --- Settings Management ---
 export const getAppSettingsFromFirestore = async (): Promise<any | null> => {
   try {
@@ -342,6 +394,7 @@ export const updateAppSettingsInFirestore = async (settings: any) => {
     return { success: true };
   } catch (error) {
     console.error("Error updating app settings:", error);
+    handleFirestoreError(error, 'write' as any, 'settings/config');
     throw error;
   }
 };

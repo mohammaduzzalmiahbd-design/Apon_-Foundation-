@@ -57,8 +57,54 @@
       "properties": {
         "maintenanceMode": { "type": "boolean" },
         "allowedDomains": { "type": "array", "items": { "type": "string" } },
-        "updatedBy": { "type": "string" }
+        "updatedBy": { "type": "string" },
+        "contact": { "type": "object" },
+        "organization": { "type": "object" },
+        "admin": { "type": "object" },
+        "socialLinks": { "type": "object" },
+        "mobileBanking": { "type": "object" }
       }
+    },
+    "Notice": {
+      "title": "Announcement",
+      "description": "Public notices for the organization.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "date": { "type": "string" },
+        "priority": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH"] },
+        "isPublic": { "type": "boolean" }
+      },
+      "required": ["id", "title", "content", "date"]
+    },
+    "Transaction": {
+      "title": "Financial Transaction",
+      "description": "Income and expense records.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["INCOME", "EXPENSE"] },
+        "amount": { "type": "number" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string" },
+        "memberId": { "type": "string" }
+      },
+      "required": ["id", "type", "amount", "category", "date"]
+    },
+    "ConstitutionSection": {
+      "title": "Constitution Section",
+      "description": "A section of the foundation's constitution.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "order": { "type": "integer" }
+      },
+      "required": ["id", "title", "content"]
     }
   },
   "firestore": {
@@ -77,6 +123,18 @@
     "/settings/config": {
       "schema": "Settings",
       "description": "Global settings for the application."
+    },
+    "/notices/{noticeId}": {
+      "schema": "Notice",
+      "description": "Organization announcements."
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Income and expense records."
+    },
+    "/constitution/{sectionId}": {
+      "schema": "ConstitutionSection",
+      "description": "Organization constitution sections."
     }
   }
 }

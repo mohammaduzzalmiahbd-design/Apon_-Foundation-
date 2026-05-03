@@ -4,6 +4,8 @@ import { Member, AppSettings, Notice } from '../types';
 import { DocumentHeader } from './DocumentHeader';
 import { DownloadDropdown } from './DownloadDropdown';
 
+import { BrandText } from './BrandText';
+
 interface Props {
   members: Member[];
   logoUrl: string | null;
@@ -94,14 +96,15 @@ export const NoticeBoard: React.FC<Props> = ({
         >
           <Bell size={16} /> নোটিশ তালিকা
         </button>
-        <button 
-          onClick={() => { setView('CREATE'); handleReset(); }}
-          className={`px-6 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 ${view === 'CREATE' ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-600 hover:bg-slate-50'}`}
-        >
-          <Plus size={16} /> নতুন নোটিশ
-        </button>
+        {isAdmin && (
+          <button 
+            onClick={() => { setView('CREATE'); handleReset(); }}
+            className={`px-6 py-2 rounded-lg font-bold text-sm transition-all flex items-center gap-2 ${view === 'CREATE' ? 'bg-orange-600 text-white shadow-lg' : 'text-slate-600 hover:bg-slate-50'}`}
+          >
+            <Plus size={16} /> নতুন নোটিশ
+          </button>
+        )}
       </div>
-
       {view === 'LIST' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
           {notices.length > 0 ? notices.map(notice => (
@@ -113,7 +116,7 @@ export const NoticeBoard: React.FC<Props> = ({
                    {isAdmin && <button onClick={() => onDeleteNotice(notice.id)} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100"><Trash2 size={14} /></button>}
                 </div>
               </div>
-              <h3 className="font-bold text-slate-800 mb-2 line-clamp-1">{notice.title}</h3>
+              <h3 className="font-bold text-slate-800 mb-2 line-clamp-1"><BrandText text={notice.title} /></h3>
               <p className="text-xs text-slate-500 line-clamp-3 mb-6 bg-slate-50 p-3 rounded-lg leading-relaxed">{notice.content}</p>
               <div className="flex justify-between items-center pt-4 border-t border-slate-100">
                 <span className="text-[10px] font-mono text-slate-400">Ref: {notice.refNo}</span>
@@ -284,14 +287,14 @@ export const NoticeBoard: React.FC<Props> = ({
 
                     {/* Subject */}
                     <div style={{ marginBottom: '20px' }}>
-                        <p style={{ fontSize: '18px', margin: 0, lineHeight: 1.4, fontWeight: 'bold', color: '#1e3a8a' }}>
-                            বিষয়: {subject}
-                        </p>
+                        <div style={{ fontSize: '18px', margin: 0, lineHeight: 1.4, fontWeight: 'bold', color: '#1e3a8a' }}>
+                            বিষয়: <BrandText text={subject} />
+                        </div>
                     </div>
 
                     {/* Body Content */}
                     <div style={{ flexGrow: 1, marginBottom: '40px' }}>
-                        <p style={{ 
+                        <div style={{ 
                             fontSize: '16px', 
                             lineHeight: '1.8', 
                             textAlign: 'justify', 
@@ -299,8 +302,8 @@ export const NoticeBoard: React.FC<Props> = ({
                             whiteSpace: 'pre-wrap',
                             color: '#1e293b'
                         }}>
-                            {body || "এখানে নোটিশের বিস্তারিত বিবরণ লিখুন।"}
-                        </p>
+                            <BrandText text={body || "এখানে নোটিশের বিস্তারিত বিবরণ লিখুন।"} />
+                        </div>
                     </div>
 
                     {/* Footer Signatures Area */}
@@ -321,7 +324,7 @@ export const NoticeBoard: React.FC<Props> = ({
                 
                 {/* System Generated Footer string */}
                 <div className="absolute bottom-4 left-0 right-0 text-center text-[9px] text-slate-400 border-t border-slate-100 pt-2 tracking-wider">
-                     SYSTEM GENERATED FORM, APON FOUNDATION MANAGEMENT SYSTEM
+                     SYSTEM GENERATED FORM, <BrandText text="APON FOUNDATION" /> MANAGEMENT SYSTEM
                 </div>
               </div>
             </div>

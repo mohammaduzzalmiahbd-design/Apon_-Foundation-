@@ -2,6 +2,8 @@ import React, { useState, useRef, useMemo } from 'react';
 import { Download, Search, Plus, Edit, Trash2, X, Image as ImageIcon, FileText, List, Table as TableIcon, Clock, LayoutGrid, Layers, GitMerge, Save, UploadCloud, Eye } from 'lucide-react';
 import { FamilyMember, AppSettings } from '../types';
 import { DownloadDropdown } from './DownloadDropdown';
+import { DocumentHeader } from './DocumentHeader';
+import { DocumentFooter } from './DocumentFooter';
 
 interface FamilyTreeProps {
   members: FamilyMember[];
@@ -175,6 +177,8 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ members, setMembers, log
   };
 
   const renderTree = (parentId: string | null | undefined = null, level: number = 0): React.ReactNode => {
+    if (level > 20) return <div className="text-red-500 text-[10px]">Depth limit reached</div>;
+    
     const children = members.filter(m => {
       if (parentId === null || parentId === undefined || parentId === "") {
         return !m.parentId || m.parentId === "";
@@ -643,62 +647,19 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ members, setMembers, log
               {/* This represents the physical A4 page */}
               <div 
                 ref={previewRef}
+                id="family-tree-export-preview"
                 className="bg-white shadow-2xl p-[15mm] relative box-border flex flex-col items-center"
-                style={{ 
-                  width: exportPageSize === 'A0' ? (exportOrientation === 'landscape' ? '1189mm' : '841mm') :
-                         exportPageSize === 'A1' ? (exportOrientation === 'landscape' ? '841mm' : '594mm') :
-                         '800mm', // Poster Default
-                  minHeight: exportPageSize === 'A0' ? (exportOrientation === 'landscape' ? '841mm' : '1189mm') :
-                             exportPageSize === 'A1' ? (exportOrientation === 'landscape' ? '594mm' : '841mm') :
-                             '600mm',
-                  height: 'auto'
-                }}
               >
-                {/* Stats Overlay - Top Right Corner */}
-                <div className="absolute top-[8mm] right-[8mm] text-right z-20 pointer-events-none">
-                  <div className="bg-slate-50 border border-slate-200 rounded-md px-3 py-1.5 shadow-sm">
-                    <p className="text-[10px] font-bold text-slate-800 leading-tight">মোট সদস্য: {members.length}</p>
-                    <p className="text-[10px] font-bold text-[#143d27] leading-tight">মোট প্রজন্ম: {maxGeneration}</p>
-                  </div>
-                </div>
-
-                {/* Header Section - Professional Document Layout */}
-                <div className="w-full mb-4 text-center" style={{ fontFamily: "'Inter', 'Noto Sans Bengali', sans-serif" }}>
-                  <div className="text-center mb-2">
-                    <span className="text-emerald-800 text-lg font-bold">بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ</span>
-                  </div>
-                  
-                  <div className="flex flex-col items-center justify-center border-b-2 border-[#143d27] pb-4">
-                    {/* Name & Logo Row */}
-                    <div className="flex items-center justify-center gap-4 mb-2">
-                      <div className="w-14 h-14 flex items-center justify-center">
-                        <img 
-                          src={logoUrl || settings.logoPath || "/logo.png"} 
-                          alt="লোগো" 
-                          key={logoUrl}
-                          className="max-h-full max-w-full object-contain" 
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            if (target.src !== "/logo.png") {
-                              target.src = "/logo.png";
-                            }
-                          }}
-                        />
-                      </div>
-                      <h1 className="text-4xl font-black flex gap-1 leading-none">
-                        <span className="text-[#143d27]">আপন</span>
-                        <span className="text-[#d97706]">ফাউন্ডেশন</span>
-                      </h1>
+                <DocumentHeader 
+                  logoUrl={logoUrl} 
+                  settings={settings} 
+                  rightElement={(
+                    <div className="text-right flex flex-col items-end gap-1">
+                      <div className="bg-[#004d26] text-white px-3 py-1 rounded text-[10px] font-bold uppercase">বংশ তালিকা</div>
+                      <p className="text-[9px] font-bold text-slate-400">রপ্তানি কপি</p>
                     </div>
-                    
-                    <p className="text-[12px] text-amber-600 font-bold tracking-[0.1em] mb-1 text-center w-full">
-                      মানব সেবায় আমরা 
-                    </p>
-                    <p className="text-[11px] font-bold text-slate-600 text-center w-full">
-                      {settings.address || settings.contact?.address || "বালীগাঁও, অষ্টগ্রাম, কিশোরগঞ্জ"}
-                    </p>
-                  </div>
-                </div>
+                  )}
+                />
 
                 {/* Content based on current viewMode */}
                 <div className="flex-1 w-full py-4 overflow-visible flex flex-col items-center">
@@ -832,6 +793,8 @@ export const FamilyTree: React.FC<FamilyTreeProps> = ({ members, setMembers, log
                     )}
                   </div>
                 </div>
+
+                <DocumentFooter settings={settings} isAwarenessPost={true} />
               </div>
             </div>
             

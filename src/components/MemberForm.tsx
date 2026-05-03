@@ -4,6 +4,8 @@ import { DocumentHeader } from './DocumentHeader';
 import { DownloadDropdown } from './DownloadDropdown';
 import { AppSettings } from '../types';
 
+import { BrandText } from './BrandText';
+
 interface Props {
   logoUrl: string | null;
   settings: AppSettings;
@@ -268,11 +270,11 @@ export const MemberForm: React.FC<Props> = ({ logoUrl, settings }) => {
                             </tbody>
                         </table>
 
-                        {/* Declaration (অঙ্গীকারনামা) - Based on Constitution Article 8.4 */}
+                        {/* Declaration (অঙ্গীকারনামা) - Based on Constitution Article 8 & 10 */}
                         <div className="bg-slate-50 p-2 border border-slate-200 rounded text-justify">
                             <h3 className="font-bold text-center underline text-[11px]">অঙ্গীকারনামা</h3>
-                            <p className="leading-relaxed text-[10px] mt-1">
-                                আমি এই মর্মে অঙ্গীকার করছি যে, উপরে প্রদত্ত সকল তথ্য সম্পূর্ণ সত্য ও সঠিক। আমি <span className="font-bold">আপন ফাউন্ডেশন</span>-এর গঠনতন্ত্র (ধারা ৮.৪ অনুযায়ী), লক্ষ্য ও উদ্দেশ্য এবং নীতিমালার প্রতি পূর্ণ আস্থা ও বিশ্বাস স্থাপন করছি। আমি সংগঠনের স্বার্থ পরিপন্থী কোনো কাজে লিপ্ত থাকব না এবং নিয়মিত চাঁদা প্রদানসহ অর্পিত দায়িত্ব নিষ্ঠার সাথে পালন করব। আমার আচরণ বা কর্মকাণ্ড সংগঠনের পরিপন্থী হলে কর্তৃপক্ষ আমার সদস্যপদ বাতিল করার অধিকার রাখে।
+                            <p className="leading-relaxed text-[10px] mt-1 text-slate-800">
+                                আমি এই মর্মে অঙ্গীকার করছি যে, উপরে প্রদত্ত সকল তথ্য সম্পূর্ণ সত্য ও সঠিক। আমি <BrandText text="আপন ফাউন্ডেশন" />-এর গঠনতন্ত্র (ধারা ৮ ও ১০ অনুযায়ী), লক্ষ্য ও উদ্দেশ্য এবং নীতিমালার প্রতি পূর্ণ আস্থা ও বিশ্বাস স্থাপন করছি। আমি সংগঠনের স্বার্থ পরিপন্থী কোনো কাজে লিপ্ত থাকব না এবং নিয়মিত চাঁদা প্রদানসহ অর্পিত দায়িত্ব নিষ্ঠার সাথে পালন করব। আমার আচরণ বা কর্মকাণ্ড সংগঠনের পরিপন্থী হলে কর্তৃপক্ষ আমার সদস্যপদ বাতিল করার অধিকার রাখে।
                             </p>
                         </div>
 
@@ -315,7 +317,7 @@ export const MemberForm: React.FC<Props> = ({ logoUrl, settings }) => {
                     
                     {/* Footer Strip */}
                     <div className="mt-auto pt-4 pb-2 text-center text-[10px] text-slate-800 font-bold w-full uppercase tracking-widest border-t border-slate-300">
-                        System Generated Form, Apon Foundation Management System
+                        System Generated Form, <BrandText text="Apon Foundation" /> Management System
                     </div>
                 </div>
             </div>

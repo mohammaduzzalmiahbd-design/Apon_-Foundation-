@@ -1,8 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { FileText, CreditCard, Receipt, Printer, Image as ImageIcon, FileDown, PenTool, Scissors } from 'lucide-react';
 import { DocumentHeader } from './DocumentHeader';
+import { DocumentFooter } from './DocumentFooter';
 import { DownloadDropdown } from './DownloadDropdown';
 import { AppSettings } from '../types';
+
+import { BrandText } from './BrandText';
 
 interface Props {
   logoUrl: string | null;
@@ -71,18 +74,14 @@ export const DocumentsGenerator: React.FC<Props> = ({ logoUrl, settings }) => {
             )}
         </div>
 
-        {/* Footer */}
-        <div className="relative z-10 mt-auto pt-6 border-t-2 border-slate-800 text-center text-xs text-slate-500 font-medium">
-             <p className="font-bold text-slate-700 text-sm mb-1">প্রধান কার্যালয়: বালিগাঁও, অষ্টগ্রাম, কিশোরগঞ্জ</p>
-             <p>মোবাইল: ০১৬০৮-৪২৭১১৫ | ইমেইল: aponfoundation@gmail.com</p>
-             <p>ওয়েবসাইট: aponfoundation-bd.blogspot.com</p>
-        </div>
+        {/* Unified Footer */}
+        <DocumentFooter settings={settings} />
     </div>
   );
 
   // Height fixed to ~118mm to fit two on A4 with spacing
   const ReceiptCard = ({ title, copyName }: { title: string, copyName: string }) => (
-    <div className="border-2 border-slate-800 rounded-xl px-6 py-4 relative overflow-hidden h-[118mm] flex flex-col bg-white shadow-sm box-border shrink-0">
+    <div className="border-2 border-[#004d26] rounded-xl px-6 py-4 relative overflow-hidden h-[118mm] flex flex-col bg-white shadow-sm box-border shrink-0">
         {/* Centered Watermark - Absolute Positioning relative to Card */}
         {logoUrl && (
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
@@ -90,19 +89,19 @@ export const DocumentsGenerator: React.FC<Props> = ({ logoUrl, settings }) => {
             </div>
         )}
 
-        {/* Header Mini */}
-        <div className="relative z-10 flex items-start justify-between border-b-2 border-slate-800 pb-2 mb-3 shrink-0">
-             <div className="flex items-center gap-3">
-                {logoUrl ? <img src={logoUrl} className="w-10 h-10 object-contain" /> : <div className="w-10 h-10 bg-slate-200 rounded-full"></div>}
-                <div>
-                    <h2 className="text-xl font-extrabold uppercase text-slate-800 leading-none"><span className="text-emerald-700">আপন</span> <span className="text-orange-600">ফাউন্ডেশন</span></h2>
-                    <p className="text-[10px] text-slate-600 font-bold mt-1">বালিগাঁও, অষ্টগ্রাম, কিশোরগঞ্জ | স্থাপিত: ২০২৫</p>
-                </div>
-             </div>
-             <div className="text-right flex flex-col items-end">
-                <div className="bg-slate-800 text-white px-3 py-1 rounded text-[11px] font-bold uppercase mb-1 whitespace-nowrap">{title}</div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{copyName}</p>
-             </div>
+        {/* Header - Unified DocumentHeader in compact mode */}
+        <div className="relative z-10 w-full mb-2">
+            <DocumentHeader 
+                logoUrl={logoUrl} 
+                settings={settings} 
+                isCompact={true}
+                rightElement={(
+                    <div className="flex flex-col items-end gap-1">
+                        <div className="bg-[#004d26] text-white px-2 py-0.5 rounded text-[8px] font-bold uppercase text-center w-full">{title}</div>
+                        <p className="text-[7px] font-bold text-slate-500 uppercase tracking-tight">{copyName}</p>
+                    </div>
+                )}
+            />
         </div>
 
         {/* Fields - Using flex-col with gap to prevent overlap */}
@@ -181,7 +180,7 @@ export const DocumentsGenerator: React.FC<Props> = ({ logoUrl, settings }) => {
   );
 
   const VoucherCard = ({ copyName }: { copyName: string }) => (
-    <div className="border-2 border-slate-800 rounded-xl px-6 py-4 relative overflow-hidden h-[118mm] flex flex-col bg-white shadow-sm box-border shrink-0">
+    <div className="border-2 border-[#cc0000] rounded-xl px-6 py-4 relative overflow-hidden h-[118mm] flex flex-col bg-white shadow-sm box-border shrink-0">
          {/* Centered Watermark */}
          {logoUrl && (
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
@@ -189,19 +188,19 @@ export const DocumentsGenerator: React.FC<Props> = ({ logoUrl, settings }) => {
             </div>
         )}
 
-        {/* Header Mini */}
-        <div className="relative z-10 flex items-start justify-between border-b-2 border-slate-800 pb-2 mb-3 shrink-0">
-             <div className="flex items-center gap-3">
-                {logoUrl ? <img src={logoUrl} className="w-10 h-10 object-contain" /> : <div className="w-10 h-10 bg-slate-200 rounded-full"></div>}
-                <div>
-                    <h2 className="text-xl font-extrabold uppercase text-slate-800 leading-none"><span className="text-emerald-700">আপন</span> <span className="text-orange-600">ফাউন্ডেশন</span></h2>
-                    <p className="text-[10px] text-slate-600 font-bold mt-1">খরচের ভাউচার (ডেবিট ভাউচার)</p>
-                </div>
-             </div>
-             <div className="text-right flex flex-col items-end">
-                <div className="bg-slate-100 text-slate-800 px-3 py-1 rounded text-[11px] font-bold uppercase mb-1 border border-slate-300 whitespace-nowrap">ভাউচার</div>
-                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{copyName}</p>
-             </div>
+        {/* Header - Unified DocumentHeader in compact mode */}
+        <div className="relative z-10 w-full mb-2">
+            <DocumentHeader 
+                logoUrl={logoUrl} 
+                settings={settings} 
+                isCompact={true}
+                rightElement={(
+                    <div className="flex flex-col items-end gap-1">
+                        <div className="bg-[#cc0000] text-white px-2 py-0.5 rounded text-[8px] font-bold uppercase text-center w-full">ভাউচার</div>
+                        <p className="text-[7px] font-bold text-slate-500 uppercase tracking-tight">{copyName}</p>
+                    </div>
+                )}
+            />
         </div>
 
         {/* Fields */}
@@ -389,7 +388,7 @@ export const DocumentsGenerator: React.FC<Props> = ({ logoUrl, settings }) => {
       {/* Preview Area */}
       <div className="lg:col-span-2 flex justify-center bg-slate-100 p-4 md:p-8 overflow-auto rounded-xl border border-slate-200 order-1 lg:order-2">
          <div className="a4-wrapper p-0 bg-transparent shadow-2xl scale-[0.8] md:scale-100 origin-top">
-             <div ref={docRef}>
+             <div ref={docRef} id="document-capture-wrapper">
                  {activeDoc === 'PAD' && renderPad()}
                  {activeDoc === 'RECEIPT' && renderReceipt()}
                  {activeDoc === 'VOUCHER' && renderVoucher()}

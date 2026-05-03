@@ -4,27 +4,44 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "tsx server.ts",
+    "start": "tsx server.ts",
+    "build": "vite build && ls -la dist",
     "preview": "vite preview",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@google/genai": "latest",
+    "@tailwindcss/postcss": "^4.2.4",
+    "autoprefixer": "^10.5.0",
+    "express": "^5.2.1",
     "firebase": "^12.12.0",
     "html-to-image": "^1.11.13",
     "html2canvas": "^1.4.1",
     "jspdf": "2.5.1",
     "lucide-react": "0.344.0",
+    "postcss": "^8.5.12",
     "qrcode": "1.5.3",
     "react": "18.2.0",
     "react-dom": "18.2.0",
-    "recharts": "2.12.3"
+    "recharts": "2.12.3",
+    "tailwindcss": "^4.2.4",
+    "tsx": "^4.21.0",
+    "vite": "^6.2.0"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
-  }
+    "typescript": "~5.8.2"
+  },
+  "browserslist": [
+    "> 0.5%",
+    "last 2 versions",
+    "Firefox ESR",
+    "not dead",
+    "not ie 11",
+    "Safari >= 12",
+    "Chrome >= 70"
+  ]
 }
