@@ -49,4 +49,115 @@ body {
   .no-print {
     display: none !important;
   }
+  body {
+    background: white;
+  }
+}
+
+/* A4 Paper Styling */
+.a4-preview-area {
+  width: 100%;
+  background-color: #cbd5e1;
+  padding: 40px 20px;
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  min-height: calc(100vh - 120px);
+}
+
+.a4-paper {
+  background: white;
+  width: 210mm;
+  height: 297mm;
+  padding: 0; /* Box handles padding */
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-sizing: border-box;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.doc-box {
+  border: 4px double #004d26;
+  margin: 5mm;
+  padding: 8mm;
+  height: calc(100% - 10mm);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  position: relative;
+  background: white;
+  flex: 1;
+}
+
+/* Watermark */
+.watermark-container {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  opacity: 0.02 !important;
+  overflow: hidden !important;
+}
+
+.watermark-container img {
+  width: 120mm !important;
+  height: auto !important;
+  filter: grayscale(100%) !important;
+}
+
+@media screen and (max-width: 210mm) {
+  .a4-preview-area {
+    padding: 20px 5px;
+    justify-content: flex-start;
+  }
+}
+
+@media print {
+  body { background: white; }
+  .no-print { display: none !important; }
+  .a4-preview-area { background: none; padding: 0; display: block; }
+  .a4-paper { 
+    box-shadow: none !important; 
+    margin: 0 !important; 
+    padding: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    page-break-after: always;
+  }
+}
+
+/* Professional Table Styling */
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 5px;
+}
+
+.doc-table th, .doc-table td {
+  border: 1px solid #cbd5e1;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.doc-table th {
+  background-color: #f1f5f9;
+  font-weight: 700;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #1e293b;
+}
+
+.doc-table td {
+  font-size: 0.7rem;
+  vertical-align: middle;
 }

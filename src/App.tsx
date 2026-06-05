@@ -58,452 +58,15 @@ function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMenuVisible, setIsMenuVisible] = useState(true);
 
-  const [appSettings, setAppSettings] = useState<AppSettings>(() => {
-    const defaultSettings: AppSettings = {
-      contact: {
-        email: 'admin@aponfoundation.org',
-        whatsapp: '+8801XXXXXXXXX',
-        phone: '+8801XXXXXXXXX',
-        address: 'বালীগাঁও, অষ্টগ্রাম, কিশোরগঞ্জ, বাংলাদেশ'
-      },
-      organization: {
-        name: 'আপন ফাউন্ডেশন',
-        established: '২০২৫',
-        intro: '"আপন ফাউন্ডেশন" একটি অরাজনৈতিক ও অলাভজনক সামাজিক সংগঠন। এটি মূলত মানবিক সহায়তা, সমাজ সংস্কার এবং তৃণমূল পর্যায়ের মানুষদের জীবনমান উন্নয়নে কাজ করে। সংগঠনের প্রধান কার্যালয় বালীগাঁও, অষ্টগ্রাম এ অবস্থিত। আমাদের লক্ষ্য একটি আদর্শ ও বৈষম্যমুক্ত সমাজ গঠন করা।',
-        slogan: 'সেবাই আমাদের পরম ধর্ম',
-        registration: 'প্রক্রিয়াধীন',
-        bloodDonorBanner: '',
-        bloodDonorDescription: 'রক্তদান জীবন বাঁচায় - আপন ফাউন্ডেশনের মাধ্যমে রক্তদাতা খুঁজুন বা নিবন্ধন করুন।'
-      },
-      socialLinks: {
-        facebook: '',
-        whatsapp: '',
-        messenger: '',
-        instagram: '',
-        twitter: ''
-      },
-      admin: {
-        username: 'admin',
-        passwordHash: 'admin'
-      }
-    };
-    try {
-      const saved = localStorage.getItem('foundation_app_settings');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && typeof parsed === 'object' && parsed.organization) {
-          return { ...defaultSettings, ...parsed, organization: { ...defaultSettings.organization, ...parsed.organization } };
-        }
-      }
-    } catch (e) {
-      console.error("Error parsing settings:", e);
-    }
-    return defaultSettings;
-  });
-  
-  const publicViews: ViewType[] = ['BLOOD_DONORS', 'HOMEPAGE', 'ABOUT_US', 'CONSTITUTION', 'MEMBERS', 'REPORTS'];
-  const isPublicMode = !currentUser && publicViews.includes(activeView);
-
-  // Handle deep links and initial view
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const viewParam = params.get('view') as ViewType;
-    if (viewParam && publicViews.includes(viewParam)) {
-      setActiveView(viewParam);
-    }
-  }, []);
-
-  const [isInIframe, setIsInIframe] = useState(false);
-  const [menuSearch, setMenuSearch] = useState('');
-  const [linkCopied, setLinkCopied] = useState(false);
-  const [embedCodeCopied, setEmbedCodeCopied] = useState(false);
-  const [showEmbedCode, setShowEmbedCode] = useState(false);
-  const [isEmbedMode, setIsEmbedMode] = useState(false);
-  
-  // Google Sheet Sync State
-  const [sheetUrl, setSheetUrl] = useState('');
-  const [isSyncing, setIsSyncing] = useState(false);
-  
-  // PWA Install Prompt State
-  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importStatus, setImportStatus] = useState<{msg: string, type: 'success'|'error'} | null>(null);
-  const [firestoreStatus, setFirestoreStatus] = useState<{success: boolean, error?: string} | null>(null);
-
-  // Fetch App Settings from Firestore
-  useEffect(() => {
-    const initApp = async () => {
-      // First verify connection
-      const conn = await verifyConnection();
-      setFirestoreStatus(conn);
-      
-      if (conn.success) {
-        // Fetch App Settings
-        const settings = await getAppSettingsFromFirestore();
-        if (settings) {
-          setAppSettings(prev => ({ ...prev, ...settings }));
-        }
-
-        // Fetch Members (Now Public)
-        const fbMembers = await getMembers();
-        if (fbMembers.length > 0) setMembers(fbMembers);
-
-        // Fetch Public Notices
-        const fbNotices = await getNotices();
-        if (fbNotices.length > 0) setNotices(fbNotices);
-
-        // Fetch Constitution (Public)
-        const fbConstitution = await getConstitution();
-        if (fbConstitution.length > 0) {
-          setConstitutionSections(fbConstitution);
-        }
-      }
-    };
-    initApp();
-  }, []);
-
   const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPER_ADMIN';
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
 
-  // Admin Data Sync
-  useEffect(() => {
-    const fetchAdminData = async () => {
-      if (!currentUser || !isAdmin) return;
-
-      try {
-        // Fetch Transactions (Admin Only)
-        const fbTransactions = await getTransactions();
-        if (fbTransactions.length > 0) setTransactions(fbTransactions);
-      } catch (e) {
-        console.error("Admin data fetch failed:", e);
-      }
-    };
-    fetchAdminData();
-  }, [currentUser, isAdmin]);
-
-  // Foundation Data Persistence Handlers
-  const handleAddMember = async (member: Member) => {
-    setMembers([...members, member]);
-    await updateMember(member.id, member);
-  };
-
-  const handleUpdateMember = async (updatedMember: Member) => {
-    setMembers(members.map(m => m.id === updatedMember.id ? updatedMember : m));
-    await updateMember(updatedMember.id, updatedMember);
-  };
-
-  const handleDeleteMember = async (id: string) => {
-    setMembers(members.filter(m => m.id !== id));
-    await deleteMember(id);
-  };
-
-  const handleAddTransaction = async (transaction: Transaction) => {
-    setTransactions([...transactions, transaction]);
-    await updateTransaction(transaction.id, transaction);
-  };
-
-  const handleUpdateTransaction = async (updated: Transaction) => {
-    setTransactions(transactions.map(t => t.id === updated.id ? updated : t));
-    await updateTransaction(updated.id, updated);
-  };
-
-  const handleDeleteTransaction = async (id: string) => {
-    setTransactions(transactions.filter(t => t.id !== id));
-    await deleteTransaction(id);
-  };
-
-  const handleSaveNotice = async (notice: Notice) => {
-    setNotices([notice, ...notices]);
-    await updateNotice(notice.id, notice);
-  };
-
-  const handleDeleteNotice = async (id: string) => {
-    setNotices(notices.filter(n => n.id !== id));
-    await deleteNotice(id);
-  };
-
-  const handleUpdateConstitution = async (sections: ConstitutionSection[]) => {
-    setConstitutionSections(sections);
-    // Sync each section
-    for (const section of sections) {
-      await updateConstitutionSection(section.id, section);
-    }
-  };
-
-  const handleUpdateSettings = async (newSettings: AppSettings | ((prev: AppSettings) => AppSettings)) => {
-    if (typeof newSettings === 'function') {
-      const updated = newSettings(appSettings);
-      setAppSettings(updated);
-      await updateAppSettingsInFirestore(updated);
-    } else {
-      setAppSettings(newSettings);
-      await updateAppSettingsInFirestore(newSettings);
-    }
-  };
-
-  // --- Auth & Role Management ---
-  useEffect(() => {
-    let isMounted = true;
-    let authResolved = false;
-
-    // Safety timeout: Ensure loading screen eventually disappears (e.g. if SDK blocked)
-    const safetyTimeout = setTimeout(() => {
-      if (isMounted && !authResolved) {
-        console.warn("Auth check timed out, proceeding to default state.");
-        setIsAuthLoading(false);
-      }
-    }, 6000); // Increased to 6s for slower networks
-
-    const subscribeToAuth = async () => {
-      // 1. Handle Redirect Result FIRST
-      try {
-        const user = await handleRedirectResult();
-        if (user && isMounted) {
-          const appUser = await syncUserDocument(user);
-          setCurrentUser(appUser);
-          setIsAuthLoading(false);
-          authResolved = true;
-          return; // Stop here if redirect resolved
-        }
-      } catch (error: any) {
-        console.error("Redirect login error", error);
-        // Don't set hard error here, let onAuthStateChanged try to recover
-      }
-
-      // 2. Main Auth Listener
-      const unsubscribe = onAuthStateChanged(auth, async (user) => {
-        if (!isMounted) return;
-        
-        authResolved = true;
-        setAuthError(null);
-        
-        try {
-          if (user) {
-            const appUser = await syncUserDocument(user);
-            setCurrentUser(appUser);
-          } else {
-            setCurrentUser(null);
-          }
-        } catch (error: any) {
-          console.error("Error syncing user", error);
-          
-          // If profile sync fails (e.g. session expired or Firestore blocked)
-          // we should still allow entrance if the user is verified, 
-          // or show a clear way to re-login.
-          if (error.code === 'permission-denied' || error.message?.includes('permission')) {
-             setAuthError("আপনার প্রোফাইল এক্সেস করার অনুমতি নেই। এডমিনের সাথে যোগাযোগ করুন।");
-          } else {
-             setAuthError(error.message || "ইউজার প্রোফাইল সিঙ্ক করতে সমস্যা হয়েছে।");
-          }
-          
-          // If it's a transient error, we don't necessarily want to block the whole app 
-          // but we MUST ensure currentUser is null if we can't verify them.
-          setCurrentUser(null);
-        } finally {
-          setIsAuthLoading(false);
-        }
-      });
-
-      return unsubscribe;
-    };
-
-    const authUnsubscribePromise = subscribeToAuth();
-
-    return () => {
-      isMounted = false;
-      clearTimeout(safetyTimeout);
-      authUnsubscribePromise.then(unsub => unsub && typeof unsub === 'function' && unsub());
-    };
-  }, []);
-
-  // Handle loading fallback link
-  useEffect(() => {
-    if (isAuthLoading) {
-      const timer = setTimeout(() => {
-        setShowForceProceed(true);
-      }, 2000); // Show link after 2s of loading
-      return () => clearTimeout(timer);
-    }
-  }, [isAuthLoading]);
-
-  // --- Handle URL Routing & PWA Install ---
-  useEffect(() => {
-    setIsInIframe(window.self !== window.top);
-    // 1. Handle PWA Install Prompt
-    const handler = (e: any) => {
-      e.preventDefault();
-      setDeferredPrompt(e);
-      console.log("Install prompt captured");
-    };
-    window.addEventListener('beforeinstallprompt', handler);
-
-    // 2. Handle URL Query Params for Routing
-    const params = new URLSearchParams(window.location.search);
-    const viewParam = params.get('view') as ViewType | null;
-    const modeParam = params.get('mode');
-
-    // Set Embed Mode
-    if (modeParam === 'embed') {
-      setIsEmbedMode(true);
-    }
-    
-    // Validate view param
-    const validViews: ViewType[] = ['HOMEPAGE', 'DASHBOARD', 'MEMBERS', 'CONSTITUTION', 'FINANCE', 'REPORTS', 'BACKUP', 'NOTICE', 'IDCARD', 'FORM', 'DOCUMENTS', 'FAMILY_TREE', 'BLOOD_DONORS', 'ABOUT_US', 'SETTINGS'];
-    
-    if (viewParam && validViews.includes(viewParam)) {
-      setActiveView(viewParam);
-    }
-
-    // 3. Load Sheet URL
-    const savedUrl = localStorage.getItem('foundation_sheet_url');
-    if (savedUrl) setSheetUrl(savedUrl);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handler);
-    };
-  }, []);
-
-  // --- Navigation Handler ---
-  const handleNavigate = (view: ViewType) => {
-    setActiveView(view);
-    setIsMobileMenuOpen(false);
-    // Don't hide menu on navigation to prevent user confusion
-    
-    // Update URL without reloading - WRAPPED IN TRY CATCH
-    try {
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.set('view', view);
-      if (isEmbedMode) newUrl.searchParams.set('mode', 'embed');
-      window.history.pushState({}, '', newUrl);
-    } catch (e) {
-      // Ignore SecurityError in sandboxed environments (like CodeSandbox/StackBlitz previews)
-      console.warn("Navigation state update skipped due to environment restrictions:", e);
-    }
-  };
-
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    setDeferredPrompt(null);
-  };
-
-  const handleCopyLink = () => {
-    const url = generateDeepLink(activeView);
-    navigator.clipboard.writeText(url);
-    
-    setLinkCopied(true);
-    setTimeout(() => setLinkCopied(false), 2000);
-  };
-
-  const getEmbedUrl = () => {
-    return generateDeepLink(activeView, { mode: 'embed' });
-  };
-
-  const handleCopyEmbedCode = () => {
-    const url = getEmbedUrl();
-    const code = `<iframe src="${url}" style="width:100%; height:800px; border:none; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);"></iframe>`;
-    navigator.clipboard.writeText(code);
-    setEmbedCodeCopied(true);
-    setTimeout(() => setEmbedCodeCopied(false), 2000);
-  };
-
-  // --- State Data ---
-  const [logo, setLogo] = useState<string | null>(() => {
-    return localStorage.getItem('foundation_logo') || null;
-  });
-
-  // --- Dynamic Meta Tags for SEO/Social Sharing ---
-  useEffect(() => {
-    const updateMetaTags = () => {
-      const getTag = (selector: string, attr: string, val: string) => {
-        let el = document.querySelector(selector);
-        if (!el) {
-          el = document.createElement('meta');
-          if (selector.includes('property')) el.setAttribute('property', val);
-          else el.setAttribute('name', val);
-          document.head.appendChild(el);
-        }
-        return el;
-      };
-
-      const ogTitle = getTag('meta[property="og:title"]', 'property', 'og:title');
-      const ogImage = getTag('meta[property="og:image"]', 'property', 'og:image');
-      const ogDesc = getTag('meta[property="og:description"]', 'property', 'og:description');
-      const ogUrl = getTag('meta[property="og:url"]', 'property', 'og:url');
-      
-      const twTitle = getTag('meta[name="twitter:title"]', 'name', 'twitter:title');
-      const twImage = getTag('meta[name="twitter:image"]', 'name', 'twitter:image');
-      const twDesc = getTag('meta[name="twitter:description"]', 'name', 'twitter:description');
-
-      let siteTitle = appSettings.organization.name;
-      let siteDesc = appSettings.organization.slogan;
-      let siteImage = logo || '/logo.png';
-      
-      if (activeView === 'BLOOD_DONORS') {
-        siteTitle = `রক্তদাতা সেবা - ${appSettings.organization.name}`;
-        siteDesc = appSettings.organization.bloodDonorDescription || 'রক্তদান জীবন বাঁচায় - আপন ফাউন্ডেশনের মাধ্যমে রক্তদাতা খুঁজুন বা নিবন্ধন করুন।';
-        if (appSettings.organization.bloodDonorBanner) {
-          siteImage = appSettings.organization.bloodDonorBanner;
-        }
-      } else if (activeView === 'ABOUT_US') {
-        siteTitle = `আমাদের সম্পর্কে - ${appSettings.organization.name}`;
-      }
-      
-      const currentUrl = generateDeepLink(activeView);
-
-      ogTitle.setAttribute('content', siteTitle);
-      ogImage.setAttribute('content', siteImage);
-      ogDesc.setAttribute('content', siteDesc);
-      ogUrl.setAttribute('content', currentUrl);
-
-      twTitle.setAttribute('content', siteTitle);
-      twImage.setAttribute('content', siteImage);
-      twDesc.setAttribute('content', siteDesc);
-      
-      document.title = siteTitle;
-    };
-    
-    updateMetaTags();
-  }, [activeView, appSettings, logo]);
-
-  const [members, setMembers] = useState<Member[]>(() => {
-    const saved = localStorage.getItem('foundation_members');
-    if (saved) return JSON.parse(saved);
-    return [];
-  });
-
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('foundation_transactions');
-    if (saved) return JSON.parse(saved);
-    return [];
-  });
-
-  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>(() => {
-    const saved = localStorage.getItem('foundation_family_members');
-    if (saved) return JSON.parse(saved);
-    return [];
-  });
-
+  const [members, setMembers] = useState<Member[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
   const [bloodDonors, setBloodDonors] = useState<BloodDonor[]>([]);
-
-  // Fetch Blood Donors from Firestore
-  useEffect(() => {
-    const fetchDonors = async () => {
-      const donors = await getBloodDonors();
-      setBloodDonors(donors);
-    };
-    fetchDonors();
-  }, []);
-
-  const [notices, setNotices] = useState<Notice[]>(() => {
-    const saved = localStorage.getItem('foundation_notices');
-    if (saved) return JSON.parse(saved);
-    return [];
-  });
-
-const [constitutionSections, setConstitutionSections] = useState<ConstitutionSection[]>(() => {
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const [constitutionSections, setConstitutionSections] = useState<ConstitutionSection[]>(() => {
     const defaultConstitution: ConstitutionSection[] = [
       {
         id: 'intro',
@@ -845,17 +408,477 @@ const [constitutionSections, setConstitutionSections] = useState<ConstitutionSec
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // If the saved version is the old short one, we upgrade it to the new default
-        if (Array.isArray(parsed) && parsed.length < defaultConstitution.length) {
-           return defaultConstitution;
+        if (Array.isArray(parsed) && parsed.length >= defaultConstitution.length) {
+          return parsed;
         }
-        return parsed;
       } catch (e) {
         console.error("Error parsing constitution:", e);
       }
     }
     return defaultConstitution;
   });
+  const [appSettings, setAppSettings] = useState<AppSettings>(() => {
+    const defaultSettings: AppSettings = {
+      contact: {
+        email: 'admin@aponfoundation.org',
+        whatsapp: '+8801725515250',
+        phone: '+8801725515250',
+        address: 'বালীগাঁও, অষ্টগ্রাম, কিশোরগঞ্জ, বাংলাদেশ'
+      },
+      organization: {
+        name: 'আপন ফাউন্ডেশন',
+        established: '২০২৫',
+        intro: '"আপন ফাউন্ডেশন" একটি অরাজনৈতিক ও অলাভজনক সামাজিক সংগঠন। এটি মূলত মানবিক সহায়তা, সমাজ সংস্কার এবং তৃণমূল পর্যায়ের মানুষদের জীবনমান উন্নয়নে কাজ করে। সংগঠনের প্রধান কার্যালয় বালীগাঁও, অষ্টগ্রাম এ অবস্থিত। আমাদের লক্ষ্য একটি আদর্শ ও বৈষম্যমুক্ত সমাজ গঠন করা।',
+        slogan: 'সেবাই আমাদের পরম ধর্ম',
+        registration: 'প্রক্রিয়াধীন',
+        bloodDonorBanner: 'https://images.unsplash.com/photo-1615461066841-6116ecaaba7f?q=80&w=1200&h=630&auto=format&fit=crop',
+        bloodDonorDescription: 'রক্তদান জীবন বাঁচায় - আপন ফাউন্ডেশনের মাধ্যমে রক্তদাতা খুঁজুন বা নিবন্ধন করুন।'
+      },
+      socialLinks: {
+        facebook: '',
+        whatsapp: '',
+        messenger: '',
+        instagram: '',
+        twitter: ''
+      },
+      logo: null,
+      admin: {
+        username: 'admin',
+        passwordHash: 'admin'
+      }
+    };
+    try {
+      const saved = localStorage.getItem('foundation_app_settings');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') {
+          return { ...defaultSettings, ...parsed };
+        }
+      }
+    } catch (e) {
+      console.error("Error parsing settings:", e);
+    }
+    return defaultSettings;
+  });
+
+  const logo = appSettings.logo || null;
+  
+  const publicViews: ViewType[] = ['BLOOD_DONORS', 'HOMEPAGE', 'ABOUT_US', 'CONSTITUTION', 'MEMBERS', 'REPORTS'];
+  const isPublicMode = !currentUser && publicViews.includes(activeView);
+
+  // Handle deep links and initial view
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view') as ViewType;
+    if (viewParam && publicViews.includes(viewParam)) {
+      setActiveView(viewParam);
+    }
+  }, []);
+
+  const [isInIframe, setIsInIframe] = useState(false);
+  const [menuSearch, setMenuSearch] = useState('');
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [embedCodeCopied, setEmbedCodeCopied] = useState(false);
+  const [showEmbedCode, setShowEmbedCode] = useState(false);
+  const [isEmbedMode, setIsEmbedMode] = useState(false);
+  
+  // Google Sheet Sync State
+  const [sheetUrl, setSheetUrl] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
+  
+  // PWA Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importStatus, setImportStatus] = useState<{msg: string, type: 'success'|'error'} | null>(null);
+  const [firestoreStatus, setFirestoreStatus] = useState<{success: boolean, error?: string} | null>(null);
+
+  // Fetch App Settings and Data from Firestore
+  useEffect(() => {
+    const initApp = async () => {
+      // First verify connection
+      const conn = await verifyConnection();
+      setFirestoreStatus(conn);
+      
+      if (conn.success) {
+        // Fetch App Settings
+        const settings = await getAppSettingsFromFirestore();
+        if (settings) {
+          setAppSettings(prev => ({ ...prev, ...settings }));
+        }
+
+        // Fetch Members (Public)
+        const fbMembers = await getMembers();
+        if (fbMembers.length > 0) setMembers(fbMembers);
+        else {
+          const savedMembers = localStorage.getItem('foundation_members');
+          if (savedMembers) setMembers(JSON.parse(savedMembers));
+        }
+
+        // Fetch Public Notices
+        const fbNotices = await getNotices();
+        if (fbNotices.length > 0) setNotices(fbNotices);
+        else {
+          const savedNotices = localStorage.getItem('foundation_notices');
+          if (savedNotices) setNotices(JSON.parse(savedNotices));
+        }
+
+        // Fetch Constitution (Public)
+        const fbConstitution = await getConstitution();
+        if (fbConstitution.length > 0) {
+          setConstitutionSections(fbConstitution);
+        } else {
+          const savedConst = localStorage.getItem('foundation_constitution');
+          if (savedConst) setConstitutionSections(JSON.parse(savedConst));
+        }
+
+        // Transactions for admin
+        if (isAdmin) {
+          const fbTransactions = await getTransactions();
+          if (fbTransactions.length > 0) setTransactions(fbTransactions);
+          else {
+            const savedTrans = localStorage.getItem('foundation_transactions');
+            if (savedTrans) setTransactions(JSON.parse(savedTrans));
+          }
+        }
+        
+        // Family members from local storage for now
+        const savedFamily = localStorage.getItem('foundation_family_members');
+        if (savedFamily) setFamilyMembers(JSON.parse(savedFamily));
+      } else {
+        // Fallback to local storage if offline
+        const savedMembers = localStorage.getItem('foundation_members');
+        if (savedMembers) setMembers(JSON.parse(savedMembers));
+        const savedNotices = localStorage.getItem('foundation_notices');
+        if (savedNotices) setNotices(JSON.parse(savedNotices));
+        const savedTrans = localStorage.getItem('foundation_transactions');
+        if (savedTrans) setTransactions(JSON.parse(savedTrans));
+        const savedConst = localStorage.getItem('foundation_constitution');
+        if (savedConst) setConstitutionSections(JSON.parse(savedConst));
+        const savedFamily = localStorage.getItem('foundation_family_members');
+        if (savedFamily) setFamilyMembers(JSON.parse(savedFamily));
+      }
+    };
+    initApp();
+  }, [isAdmin]);
+
+  // Fetch Blood Donors
+  useEffect(() => {
+    const fetchDonors = async () => {
+      try {
+        const donors = await getBloodDonors();
+        if (donors.length > 0) setBloodDonors(donors);
+      } catch (e) {
+        const saved = localStorage.getItem('foundation_blood_donors');
+        if (saved) setBloodDonors(JSON.parse(saved));
+      }
+    };
+    fetchDonors();
+  }, []);
+
+  // Foundation Data Persistence Handlers
+  const handleAddMember = async (member: Member) => {
+    const updated = [...members, member];
+    setMembers(updated);
+    localStorage.setItem('foundation_members', JSON.stringify(updated));
+    await updateMember(member.id, member);
+  };
+
+  const handleUpdateMember = async (updatedMember: Member) => {
+    const updated = members.map(m => m.id === updatedMember.id ? updatedMember : m);
+    setMembers(updated);
+    localStorage.setItem('foundation_members', JSON.stringify(updated));
+    await updateMember(updatedMember.id, updatedMember);
+  };
+
+  const handleDeleteMember = async (id: string) => {
+    const updated = members.filter(m => m.id !== id);
+    setMembers(updated);
+    localStorage.setItem('foundation_members', JSON.stringify(updated));
+    await deleteMember(id);
+  };
+
+  const handleAddTransaction = async (transaction: Transaction) => {
+    const updated = [...transactions, transaction];
+    setTransactions(updated);
+    localStorage.setItem('foundation_transactions', JSON.stringify(updated));
+    await updateTransaction(transaction.id, transaction);
+  };
+
+  const handleUpdateTransaction = async (updated: Transaction) => {
+    const updatedList = transactions.map(t => t.id === updated.id ? updated : t);
+    setTransactions(updatedList);
+    localStorage.setItem('foundation_transactions', JSON.stringify(updatedList));
+    await updateTransaction(updated.id, updated);
+  };
+
+  const handleDeleteTransaction = async (id: string) => {
+    const updated = transactions.filter(t => t.id !== id);
+    setTransactions(updated);
+    localStorage.setItem('foundation_transactions', JSON.stringify(updated));
+    await deleteTransaction(id);
+  };
+
+  const handleSaveNotice = async (notice: Notice) => {
+    const updated = [notice, ...notices];
+    setNotices(updated);
+    localStorage.setItem('foundation_notices', JSON.stringify(updated));
+    await updateNotice(notice.id, notice);
+  };
+
+  const handleDeleteNotice = async (id: string) => {
+    const updated = notices.filter(n => n.id !== id);
+    setNotices(updated);
+    localStorage.setItem('foundation_notices', JSON.stringify(updated));
+    await deleteNotice(id);
+  };
+
+  const handleUpdateConstitution = async (sections: ConstitutionSection[]) => {
+    setConstitutionSections(sections);
+    localStorage.setItem('foundation_constitution', JSON.stringify(sections));
+    // Sync each section
+    for (const section of sections) {
+      await updateConstitutionSection(section.id, section);
+    }
+  };
+
+  const handleUpdateSettings = async (newSettings: AppSettings | ((prev: AppSettings) => AppSettings)) => {
+    let updated: AppSettings;
+    if (typeof newSettings === 'function') {
+      updated = newSettings(appSettings);
+    } else {
+      updated = newSettings;
+    }
+    
+    setAppSettings(updated);
+    localStorage.setItem('foundation_app_settings', JSON.stringify(updated));
+    await updateAppSettingsInFirestore(updated);
+  };
+
+  // --- Auth & Role Management ---
+  useEffect(() => {
+    let isMounted = true;
+    let authResolved = false;
+
+    // Safety timeout: Ensure loading screen eventually disappears (e.g. if SDK blocked)
+    const safetyTimeout = setTimeout(() => {
+      if (isMounted && !authResolved) {
+        console.warn("Auth check timed out, proceeding to default state.");
+        setIsAuthLoading(false);
+      }
+    }, 6000); // Increased to 6s for slower networks
+
+    const subscribeToAuth = async () => {
+      // 1. Handle Redirect Result FIRST
+      try {
+        const user = await handleRedirectResult();
+        if (user && isMounted) {
+          const appUser = await syncUserDocument(user);
+          setCurrentUser(appUser);
+          setIsAuthLoading(false);
+          authResolved = true;
+          return; // Stop here if redirect resolved
+        }
+      } catch (error: any) {
+        console.error("Redirect login error", error);
+        // Don't set hard error here, let onAuthStateChanged try to recover
+      }
+
+      // 2. Main Auth Listener
+      const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (!isMounted) return;
+        
+        authResolved = true;
+        setAuthError(null);
+        
+        try {
+          if (user) {
+            const appUser = await syncUserDocument(user);
+            setCurrentUser(appUser);
+          } else {
+            setCurrentUser(null);
+          }
+        } catch (error: any) {
+          console.error("Error syncing user", error);
+          
+          // If profile sync fails (e.g. session expired or Firestore blocked)
+          // we should still allow entrance if the user is verified, 
+          // or show a clear way to re-login.
+          if (error.code === 'permission-denied' || error.message?.includes('permission')) {
+             setAuthError("আপনার প্রোফাইল এক্সেস করার অনুমতি নেই। এডমিনের সাথে যোগাযোগ করুন।");
+          } else {
+             setAuthError(error.message || "ইউজার প্রোফাইল সিঙ্ক করতে সমস্যা হয়েছে।");
+          }
+          
+          // If it's a transient error, we don't necessarily want to block the whole app 
+          // but we MUST ensure currentUser is null if we can't verify them.
+          setCurrentUser(null);
+        } finally {
+          setIsAuthLoading(false);
+        }
+      });
+
+      return unsubscribe;
+    };
+
+    const authUnsubscribePromise = subscribeToAuth();
+
+    return () => {
+      isMounted = false;
+      clearTimeout(safetyTimeout);
+      authUnsubscribePromise.then(unsub => unsub && typeof unsub === 'function' && unsub());
+    };
+  }, []);
+
+  // Handle loading fallback link
+  useEffect(() => {
+    if (isAuthLoading) {
+      const timer = setTimeout(() => {
+        setShowForceProceed(true);
+      }, 2000); // Show link after 2s of loading
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthLoading]);
+
+  // --- Handle URL Routing & PWA Install ---
+  useEffect(() => {
+    setIsInIframe(window.self !== window.top);
+    // 1. Handle PWA Install Prompt
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      console.log("Install prompt captured");
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+
+    // 2. Handle URL Query Params for Routing
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view') as ViewType | null;
+    const modeParam = params.get('mode');
+
+    // Set Embed Mode
+    if (modeParam === 'embed') {
+      setIsEmbedMode(true);
+    }
+    
+    // Validate view param
+    const validViews: ViewType[] = ['HOMEPAGE', 'DASHBOARD', 'MEMBERS', 'CONSTITUTION', 'FINANCE', 'REPORTS', 'BACKUP', 'NOTICE', 'IDCARD', 'FORM', 'DOCUMENTS', 'FAMILY_TREE', 'BLOOD_DONORS', 'ABOUT_US', 'SETTINGS'];
+    
+    if (viewParam && validViews.includes(viewParam)) {
+      setActiveView(viewParam);
+    }
+
+    // 3. Load Sheet URL
+    const savedUrl = localStorage.getItem('foundation_sheet_url');
+    if (savedUrl) setSheetUrl(savedUrl);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+    };
+  }, []);
+
+  // --- Navigation Handler ---
+  const handleNavigate = (view: ViewType) => {
+    setActiveView(view);
+    setIsMobileMenuOpen(false);
+    // Don't hide menu on navigation to prevent user confusion
+    
+    // Update URL without reloading - WRAPPED IN TRY CATCH
+    try {
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set('view', view);
+      if (isEmbedMode) newUrl.searchParams.set('mode', 'embed');
+      window.history.pushState({}, '', newUrl);
+    } catch (e) {
+      // Ignore SecurityError in sandboxed environments (like CodeSandbox/StackBlitz previews)
+      console.warn("Navigation state update skipped due to environment restrictions:", e);
+    }
+  };
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    setDeferredPrompt(null);
+  };
+
+  const handleCopyLink = () => {
+    const url = generateDeepLink(activeView);
+    navigator.clipboard.writeText(url);
+    
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  };
+
+  const getEmbedUrl = () => {
+    return generateDeepLink(activeView, { mode: 'embed' });
+  };
+
+  const handleCopyEmbedCode = () => {
+    const url = getEmbedUrl();
+    const code = `<iframe src="${url}" style="width:100%; height:800px; border:none; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);"></iframe>`;
+    navigator.clipboard.writeText(code);
+    setEmbedCodeCopied(true);
+    setTimeout(() => setEmbedCodeCopied(false), 2000);
+  };
+
+  // --- State Data ---
+  // Logo is now part of appSettings for Firestore persistence
+
+  // --- Dynamic Meta Tags for SEO/Social Sharing ---
+  useEffect(() => {
+    const updateMetaTags = () => {
+      const getTag = (selector: string, attr: string, val: string) => {
+        let el = document.querySelector(selector);
+        if (!el) {
+          el = document.createElement('meta');
+          if (selector.includes('property')) el.setAttribute('property', val);
+          else el.setAttribute('name', val);
+          document.head.appendChild(el);
+        }
+        return el;
+      };
+
+      const ogTitle = getTag('meta[property="og:title"]', 'property', 'og:title');
+      const ogImage = getTag('meta[property="og:image"]', 'property', 'og:image');
+      const ogDesc = getTag('meta[property="og:description"]', 'property', 'og:description');
+      const ogUrl = getTag('meta[property="og:url"]', 'property', 'og:url');
+      
+      const twTitle = getTag('meta[name="twitter:title"]', 'name', 'twitter:title');
+      const twImage = getTag('meta[name="twitter:image"]', 'name', 'twitter:image');
+      const twDesc = getTag('meta[name="twitter:description"]', 'name', 'twitter:description');
+
+      let siteTitle = appSettings.organization.name;
+      let siteDesc = appSettings.organization.slogan;
+      let siteImage = appSettings.logo || '/logo.png';
+      
+      if (activeView === 'BLOOD_DONORS') {
+        siteTitle = `রক্তদাতা সেবা - ${appSettings.organization.name}`;
+        siteDesc = appSettings.organization.bloodDonorDescription || 'রক্তদান জীবন বাঁচায় - আপন ফাউন্ডেশনের মাধ্যমে রক্তদাতা খুঁজুন বা নিবন্ধন করুন।';
+      } else if (activeView === 'ABOUT_US') {
+        siteTitle = `আমাদের সম্পর্কে - ${appSettings.organization.name}`;
+      } else if (activeView === 'CONSTITUTION') {
+        siteTitle = `গঠনতন্ত্র (Constitution) - ${appSettings.organization.name}`;
+      } else if (activeView === 'MEMBERS') {
+        siteTitle = `সদস্য তালিকা - ${appSettings.organization.name}`;
+      }
+      
+      const currentUrl = generateDeepLink(activeView);
+
+      ogTitle.setAttribute('content', siteTitle);
+      ogImage.setAttribute('content', siteImage);
+      ogDesc.setAttribute('content', siteDesc);
+      ogUrl.setAttribute('content', currentUrl);
+
+      twTitle.setAttribute('content', siteTitle);
+      twImage.setAttribute('content', siteImage);
+      twDesc.setAttribute('content', siteDesc);
+      
+      document.title = siteTitle;
+    };
+    
+    updateMetaTags();
+  }, [activeView, appSettings, logo]);
 
 
 
@@ -955,14 +978,6 @@ const [constitutionSections, setConstitutionSections] = useState<ConstitutionSec
     localStorage.setItem('foundation_notices', JSON.stringify(notices));
   }, [notices]);
 
-  useEffect(() => {
-    if (logo) {
-      localStorage.setItem('foundation_logo', logo);
-    } else {
-      localStorage.removeItem('foundation_logo');
-    }
-  }, [logo]);
-
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -970,10 +985,10 @@ const [constitutionSections, setConstitutionSections] = useState<ConstitutionSec
       reader.onloadend = async () => {
         try {
           const compressed = await compressImage(reader.result as string, 400, 400, 0.8);
-          setLogo(compressed);
+          handleUpdateSettings(prev => ({ ...prev, logo: compressed }));
         } catch (err) {
           console.error("Logo compression failed", err);
-          setLogo(reader.result as string);
+          handleUpdateSettings(prev => ({ ...prev, logo: reader.result as string }));
         }
       };
       reader.readAsDataURL(file);
@@ -1565,8 +1580,6 @@ const [constitutionSections, setConstitutionSections] = useState<ConstitutionSec
                   <Settings 
                     settings={appSettings} 
                     onUpdateSettings={handleUpdateSettings} 
-                    logoUrl={logo} 
-                    onUpdateLogo={setLogo} 
                     isSuperAdmin={isSuperAdmin}
                   />
                 </div>
@@ -1580,7 +1593,7 @@ const [constitutionSections, setConstitutionSections] = useState<ConstitutionSec
                     onAddTransaction={handleAddTransaction}
                     onUpdateTransaction={handleUpdateTransaction}
                     onDeleteTransaction={handleDeleteTransaction}
-                    logoUrl={logo}
+                    logoUrl={appSettings.logo || null}
                     settings={appSettings}
                   />
                 </div>

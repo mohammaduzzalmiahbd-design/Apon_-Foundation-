@@ -36,6 +36,24 @@ export const ActivityReports: React.FC<Props> = ({ transactions, logoUrl, settin
   const [customTitle, setCustomTitle] = useState('');
   const [customCount, setCustomCount] = useState('');
   const reportRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [docScale, setDocScale] = useState(1);
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.clientWidth - 48;
+        if (containerWidth < 794) {
+          setDocScale(containerWidth / 794);
+        } else {
+          setDocScale(1);
+        }
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Calculate stats based on category matching
   const reportData = useMemo(() => {
@@ -116,139 +134,136 @@ export const ActivityReports: React.FC<Props> = ({ transactions, logoUrl, settin
           </div>
 
           <div className="flex flex-col gap-3 pt-4">
-              <DownloadDropdown 
-                targetRef={reportRef} 
-                fileNamePrefix={`Report_${selectedCategory.id}_${year}`} 
-                settings={settings} 
-                logoUrl={logoUrl} 
-              />
+              <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100 mb-2">
+                 <p className="text-[10px] text-emerald-800 font-bold uppercase tracking-widest mb-2">ডাউনলোড করার আগে</p>
+                 <DownloadDropdown 
+                    targetRef={reportRef} 
+                    fileNamePrefix={`Report_${selectedCategory.id}_${year}`} 
+                    settings={settings} 
+                    logoUrl={logoUrl} 
+                />
+              </div>
               <button 
                 onClick={() => window.print()} 
-                className="bg-slate-800 text-white py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-slate-900 font-medium shadow-sm"
+                className="bg-[#004d26] text-white py-3 rounded-lg flex items-center justify-center gap-2 hover:bg-[#003d1e] font-bold shadow-md transition-all active:scale-95"
               >
-                  <Printer size={18} /> প্রিন্ট করুন
+                  <Printer size={18} /> প্রিভিউ প্রিন্ট ও ডাউনলোড
               </button>
           </div>
         </div>
       </div>
 
       {/* A4 Report Preview */}
-      <div className="lg:col-span-2 flex justify-center bg-slate-100 p-4 md:p-8 overflow-auto rounded-xl border border-slate-200 order-1 lg:order-2">
-        <div className="a4-wrapper p-0 bg-transparent shadow-2xl scale-[0.8] md:scale-100 origin-top">
+      <div className="lg:col-span-2 order-1 lg:order-2">
+         <div ref={containerRef} className="a4-preview-area rounded-xl border border-slate-200 shadow-inner">
              <div 
-                ref={reportRef}
-                id="activity-report-a4" 
-                className="a4-paper flex flex-col relative bg-white text-black h-[297mm]" 
-                style={{ padding: '20mm 25mm' }}
-            >
-                {/* Watermark */}
-                {logoUrl && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-                        <img src={logoUrl} alt="Watermark" className="w-[400px] opacity-[0.05] grayscale" />
-                    </div>
-                )}
-
-                <DocumentHeader logoUrl={logoUrl} settings={settings} />
-
-                {/* Report Content */}
-                <div className="relative z-10 flex-1 flex flex-col">
-                    
-                    {/* Title Section */}
-                    <div className="text-center mb-8 border-b-2 border-slate-100 pb-6">
-                        <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${selectedCategory.bg}`}>
-                            <selectedCategory.icon size={32} className={selectedCategory.color} />
+               ref={reportRef} 
+               className="a4-paper shadow-2xl transition-transform duration-300 origin-top"
+               style={{ transform: `scale(${docScale})` }}
+             >
+                 <div className="doc-box flex flex-col h-full bg-white">
+                    {/* Watermark in the middle */}
+                    {logoUrl && (
+                        <div className="watermark-container">
+                            <img src={logoUrl} alt="Watermark" crossOrigin="anonymous" />
                         </div>
-                        <h1 className="text-2xl font-bold text-slate-800 uppercase tracking-wide mb-1">
-                            বার্ষিক কার্যক্রম প্রতিবেদন - {toBengali(year)}
-                        </h1>
-                        <h2 className={`text-xl font-bold ${selectedCategory.color} border-b border-dotted border-slate-300 inline-block px-4 pb-1`}>
-                            {customTitle || selectedCategory.label}
-                        </h2>
-                    </div>
-
-                    {/* Summary Cards */}
-                    <div className="grid grid-cols-2 gap-6 mb-8">
-                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center">
-                             <p className="text-slate-500 text-sm font-bold uppercase tracking-wider mb-2">মোট ব্যয়িত অর্থ</p>
-                             <p className={`text-3xl font-bold ${selectedCategory.color}`}>
-                                ৳ {toBengali(reportData.totalAmount.toLocaleString())}
-                             </p>
+                    )}
+                    <DocumentHeader logoUrl={logoUrl} settings={settings} />
+                    <div className="relative z-10 flex-1 flex flex-col">
+                        <div className="text-center mb-6 border-b-2 border-slate-100 pb-4">
+                            <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full mb-3 ${selectedCategory.bg}`}>
+                                <selectedCategory.icon size={24} className={selectedCategory.color} />
+                            </div>
+                            <h1 className="text-xl font-bold text-slate-800 tracking-wide mb-1">
+                                বার্ষিক কার্যক্রম প্রতিবেদন - {toBengali(year)}
+                            </h1>
+                            <h2 className={`font-bold ${selectedCategory.color} border-b border-dotted border-slate-300 inline-block px-4 pb-1`}>
+                                {customTitle || selectedCategory.label}
+                            </h2>
                         </div>
-                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 text-center">
-                             <p className="text-slate-500 text-sm font-bold uppercase tracking-wider mb-2">সুবিধাভোগী / সংখ্যা</p>
-                             <p className="text-2xl font-bold text-slate-800">
-                                {toBengali(customCount || 'N/A')}
-                             </p>
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
+                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">মোট ব্যয়িত অর্থ</p>
+                                <p className={`text-2xl font-bold ${selectedCategory.color}`}>
+                                    ৳ {toBengali(reportData.totalAmount.toLocaleString())}
+                                </p>
+                            </div>
+                            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center">
+                                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">সুবিধাভোগী / সংখ্যা</p>
+                                <p className="text-xl font-bold text-slate-800">
+                                    {toBengali(customCount || 'N/A')}
+                                </p>
+                            </div>
                         </div>
-                    </div>
-
-                    {/* Detailed Table */}
-                    <div className="flex-1">
-                        <h3 className="font-bold text-slate-700 text-sm mb-3 flex items-center gap-2">
-                           <CheckCircle2 size={16} /> খরচের বিস্তারিত বিবরণ
-                        </h3>
-                        
-                        <table className="w-full text-sm border-collapse border border-slate-300">
-                            <thead className="bg-slate-100 text-slate-700">
-                                <tr>
-                                    <th className="border border-slate-300 p-2 w-12 text-center">নং</th>
-                                    <th className="border border-slate-300 p-2 w-28 text-center">তারিখ</th>
-                                    <th className="border border-slate-300 p-2 text-left">বিবরণ</th>
-                                    <th className="border border-slate-300 p-2 w-32 text-right">টাকার পরিমাণ</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {reportData.transactions.length > 0 ? (
-                                    reportData.transactions.map((t, idx) => (
-                                        <tr key={t.id}>
-                                            <td className="border border-slate-300 p-2 text-center">{toBengali(idx + 1)}</td>
-                                            <td className="border border-slate-300 p-2 text-center">{toBengali(t.date)}</td>
-                                            <td className="border border-slate-300 p-2">{t.description || t.category}</td>
-                                            <td className="border border-slate-300 p-2 text-right font-bold">
-                                                {toBengali(t.amount)}/-
+                        <div className="flex-1">
+                            <h3 className="font-bold text-slate-700 text-xs mb-2 flex items-center gap-2">
+                            <CheckCircle2 size={14} className="text-emerald-500" /> খরচের বিস্তারিত বিবরণ
+                            </h3>
+                            <table className="doc-table">
+                                <thead className="bg-slate-100 text-slate-700">
+                                    <tr>
+                                        <th className="w-12 text-center">নং</th>
+                                        <th className="w-28 text-center">তারিখ</th>
+                                        <th className="text-left">বিবরণ</th>
+                                        <th className="w-32 text-right">টাকার পরিমাণ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {reportData.transactions.length > 0 ? (
+                                        reportData.transactions.map((t, idx) => (
+                                            <tr key={t.id}>
+                                                <td className="text-center text-slate-500">{toBengali(idx + 1)}</td>
+                                                <td className="text-center font-mono text-xs">{toBengali(t.date)}</td>
+                                                <td className="font-medium text-slate-700">{t.description || t.category}</td>
+                                                <td className="text-right font-bold text-slate-900">
+                                                    {toBengali(t.amount)}/-
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={4} className="p-12 text-center text-slate-400 italic">
+                                                এই খাতে কোনো খরচের তথ্য পাওয়া যায়নি
                                             </td>
                                         </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={4} className="border border-slate-300 p-8 text-center text-slate-400 italic">
-                                            এই খাতে কোনো খরচের তথ্য পাওয়া যায়নি
-                                        </td>
-                                    </tr>
-                                )}
-                                {/* Total Row */}
-                                {reportData.transactions.length > 0 && (
-                                    <tr className="bg-slate-50 font-bold">
-                                        <td colSpan={3} className="border border-slate-300 p-2 text-right pr-4 uppercase text-slate-600">সর্বমোট</td>
-                                        <td className="border border-slate-300 p-2 text-right text-slate-900">
-                                            {toBengali(reportData.totalAmount)}/-
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                    )}
+                                    {reportData.transactions.length > 0 && (
+                                        <tr className="bg-slate-50 font-bold">
+                                            <td colSpan={3} className="p-2 text-right pr-4 uppercase text-slate-500 text-xs text-[10px]">সর্বমোট ব্যয়িত অর্থ</td>
+                                            <td className="p-2 text-right text-emerald-700 text-lg">
+                                                ৳ {toBengali(reportData.totalAmount.toLocaleString())}/-
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
-
-                {/* Footer Signatures */}
-                <div className="relative z-10 mt-6 flex justify-between items-end gap-8 mb-6">
-                    <div className="text-center flex-1">
-                        <div className="border-t border-dashed border-slate-400 mb-1 mx-auto w-32"></div>
-                        <p className="text-[10px] font-bold text-slate-600">কোষাধ্যক্ষ</p>
+                    {/* Universal Triple Signatures */}
+                    <div className="relative z-10 mt-auto pt-16 flex justify-between items-end px-2 pb-8">
+                        <div className="text-center w-full">
+                            <div className="border-t-2 border-[#004d26] pt-1 pt-2">
+                               <p className="font-bold text-[#004d26] text-sm">সভাপতি</p>
+                               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">আপন ফাউন্ডেশন</p>
+                            </div>
+                        </div>
+                        <div className="text-center w-full mx-4">
+                            <div className="border-t-2 border-[#004d26] pt-1 pt-2">
+                               <p className="font-bold text-[#004d26] text-sm">সাধারণ সম্পাদক</p>
+                               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">আপন ফাউন্ডেশন</p>
+                            </div>
+                        </div>
+                        <div className="text-center w-full">
+                            <div className="border-t-2 border-[#004d26] pt-1 pt-2">
+                               <p className="font-bold text-[#004d26] text-sm">অর্থ সম্পাদক</p>
+                               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">আপন ফাউন্ডেশন</p>
+                            </div>
+                        </div>
                     </div>
-                    <div className="text-center flex-1">
-                        <div className="border-t border-dashed border-slate-400 mb-1 mx-auto w-32"></div>
-                        <p className="text-[10px] font-bold text-slate-600">সাধারণ সম্পাদক</p>
-                    </div>
-                    <div className="text-center flex-1">
-                        <div className="border-t border-dashed border-slate-400 mb-1 mx-auto w-32"></div>
-                        <p className="text-[10px] font-bold text-slate-600">সভাপতি</p>
-                    </div>
-                </div>
-                
-                <DocumentFooter settings={settings} />
-            </div>
-        </div>
+                    <DocumentFooter settings={settings} />
+                 </div>
+             </div>
+         </div>
       </div>
     </div>
   );

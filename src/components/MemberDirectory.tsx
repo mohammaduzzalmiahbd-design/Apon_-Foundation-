@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { Search, Plus, User, Trash2, CreditCard, MapPin, Droplet, Calendar, Briefcase, Download, Image as ImageIcon, FileDown, FileText, Grid, Printer, Upload, Camera } from 'lucide-react';
 import { Member, CouncilType, AppSettings } from '../types';
 import { DocumentHeader } from './DocumentHeader';
+import { DocumentFooter } from './DocumentFooter';
 import { DownloadDropdown } from './DownloadDropdown';
 
 interface Props {
@@ -18,7 +19,7 @@ const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdateMember, onDeleteMember, logoUrl, settings, isAdmin }) => {
   const [activeTab, setActiveTab] = useState<CouncilType>('GENERAL');
-  const [viewMode, setViewMode] = useState<'GRID' | 'PRINT'>('GRID');
+  const [viewMode, setViewMode] = useState<'GRID' | 'PRINT' | 'PREVIEW'>('GRID');
   const [searchTerm, setSearchTerm] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
@@ -186,7 +187,7 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
       <div className="p-6 border-b border-indigo-50 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-white to-indigo-50">
         <h2 className="text-2xl font-bold text-indigo-900">সদস্য তালিকা</h2>
         
-        {viewMode === 'GRID' && (
+        {(viewMode === 'GRID' || viewMode === 'PREVIEW') && (
           <div className="flex items-center gap-2 bg-white border border-indigo-100 px-3 py-2 rounded-lg w-full md:w-72 shadow-sm focus-within:ring-2 focus-within:ring-indigo-200 transition-all">
             <Search size={18} className="text-indigo-400" />
             <input 
@@ -217,15 +218,15 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
                <Grid size={18} />
              </button>
              <button 
-               onClick={() => setViewMode('PRINT')}
-               className={`p-2 rounded ${viewMode === 'PRINT' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}
-               title="রিপোর্ট/তালিকা ভিউ"
+               onClick={() => setViewMode('PREVIEW')}
+               className={`p-2 rounded ${viewMode === 'PREVIEW' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}
+               title="প্রিভিউ ও ডাউনলোড (A4)"
              >
-               <FileText size={18} />
+               <Printer size={18} />
              </button>
            </div>
 
-           {viewMode === 'PRINT' && (
+           {viewMode === 'PREVIEW' && (
               <>
                  <DownloadDropdown 
                    targetRef={printRef} 
@@ -234,12 +235,11 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
                    logoUrl={logoUrl || null} 
                  />
                  <button 
-                  onClick={() => window.print()}
-                  className="bg-slate-800 text-white px-3 py-2 rounded-lg hover:bg-slate-900 flex items-center gap-2 shadow-sm"
-                  title="প্রিন্ট করুন"
-                >
-                  <Printer size={18} />
-                </button>
+                   onClick={() => window.print()}
+                   className="bg-[#004d26] text-white px-4 py-2 rounded-lg hover:bg-[#003d1e] flex items-center gap-2 shadow-md font-bold text-sm"
+                 >
+                   <Printer size={18} /> ডাউনলোড করুন
+                 </button>
               </>
            )}
         </div>
@@ -517,10 +517,29 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
         )}
 
         {/* === PRINT/REPORT VIEW (A4 Table) === */}
-        {viewMode === 'PRINT' && (
-          <div className="a4-wrapper" ref={printRef}>
+        {(viewMode === 'PRINT' || viewMode === 'PREVIEW') && (
+          <div className="a4-wrapper no-print-wrapper">
+            {viewMode === 'PREVIEW' && (
+              <div className="bg-[#004d26] text-white px-8 py-4 rounded-xl shadow-2xl mb-8 flex items-center justify-between gap-8 no-print animate-bounce max-w-[210mm]">
+                <div>
+                  <h3 className="font-bold text-xl">ডকুমেন্ট প্রিভিউ লোড হয়েছে</h3>
+                  <p className="text-emerald-100 text-sm">সব তথ্য ঠিক থাকলে উপরের ডাউনলোডে ক্লিক করুন অথবা নিচের প্রিন্ট বাটনে ক্লিক করুন</p>
+                </div>
+                <button 
+                  onClick={() => window.print()}
+                  className="bg-white text-[#004d26] px-6 py-2 rounded-lg font-black flex items-center gap-2 hover:bg-emerald-50 transition-colors"
+                >
+                  <Download size={20} /> এখন ডাউনলোড করুন
+                </button>
+              </div>
+            )}
+            
+            <div 
+              className={`${viewMode === 'PREVIEW' ? 'block' : 'fixed left-0 top-[-9999px] w-[210mm] opacity-0 pointer-events-none'}`} 
+              ref={printRef}
+            >
               {(() => {
-                const ROWS_PER_PAGE = 15;
+                const ROWS_PER_PAGE = 12;
                 const chunks = [];
                 let remaining = [...filteredMembers];
                 
@@ -533,114 +552,103 @@ export const MemberDirectory: React.FC<Props> = ({ members, onAddMember, onUpdat
                 }
 
                 return chunks.map((chunk, pageIndex) => (
-                  <div key={pageIndex} className="a4-paper flex flex-col relative" style={{ marginBottom: pageIndex < chunks.length - 1 ? '20px' : '0' }}>
-                    {logoUrl && (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-                        <img src={logoUrl} alt="Watermark" className="w-[500px] opacity-[0.06] grayscale" />
-                      </div>
-                    )}
-                    
-                    {/* Header on Every Page */}
-                    <DocumentHeader logoUrl={logoUrl} settings={settings} />
-
-                    <div className="relative z-10 flex-1 flex flex-col">
-                      <div className="text-center mb-6">
-                        <span className="bg-slate-900 text-white px-8 py-2 rounded-full border border-slate-800 font-bold text-lg uppercase tracking-wider shadow-sm">
-                          {getCouncilTitle(activeTab)}
-                        </span>
-                      </div>
-
-                      <table className="w-full text-sm text-left border-collapse border border-slate-300">
-                        <thead>
-                          <tr className="bg-slate-100">
-                            <th className="border border-slate-300 p-2 w-10 text-center">নং</th>
-                            <th className="border border-slate-300 p-2 w-16 text-center">ছবি</th>
-                            <th className="border border-slate-300 p-2">নাম</th>
-                            <th className="border border-slate-300 p-2">পদবী/ধরন</th>
-                            <th className="border border-slate-300 p-2">মোবাইল</th>
-                            <th className="border border-slate-300 p-2 text-center">রক্ত</th>
-                            <th className="border border-slate-300 p-2">ঠিকানা</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {chunk.map((member, index) => {
-                            const globalIndex = index + 1 + (pageIndex * ROWS_PER_PAGE);
-
-                            return (
-                              <tr key={member.id} className="even:bg-slate-50/50">
-                                <td className="border border-slate-300 p-2 text-center">{globalIndex}</td>
-                                <td className="border border-slate-300 p-1 text-center align-middle">
-                                  <div className="flex flex-col items-center gap-1">
-                                    {member.profileImage ? (
-                                      <img src={member.profileImage} alt="" className="w-10 h-10 rounded-full object-cover border border-slate-200" />
-                                    ) : (
-                                      <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-400">
-                                        <User size={16} />
-                                      </div>
-                                    )}
-                                    
-                                    {/* Action Buttons */}
-                                    {isAdmin && (
-                                      <div className="flex flex-col items-center gap-1 mt-1 no-print">
-                                        <button 
-                                          onClick={() => triggerTableUpload(member.id)}
-                                          className="text-[10px] bg-slate-200 hover:bg-slate-300 px-1.5 py-0.5 rounded text-slate-600 flex items-center gap-1"
-                                          title="ছবি পরিবর্তন করুন"
-                                        >
-                                          <Camera size={10} /> ছবি
-                                        </button>
-                                        <button 
-                                          onClick={() => handleEditMember(member)}
-                                          className="text-[10px] bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-1.5 py-0.5 rounded flex items-center gap-1"
-                                          title="সম্পাদনা করুন"
-                                        >
-                                          <span className="font-bold">✎</span> এডিট
-                                        </button>
-                                      </div>
-                                    )}
-                                  </div>
-                                </td>
-                                <td className="border border-slate-300 p-2 font-bold text-slate-800">{member.name}</td>
-                                <td className="border border-slate-300 p-2">
-                                  {member.designation || (member.council === 'GENERAL' ? 'সাধারণ সদস্য' : 'সদস্য')}
-                                </td>
-                                <td className="border border-slate-300 p-2 font-mono">{member.phone}</td>
-                                <td className="border border-slate-300 p-2 text-center font-bold text-rose-600">{member.bloodGroup || '-'}</td>
-                                <td className="border border-slate-300 p-2">{member.address || '-'}</td>
-                              </tr>
-                            );
-                          })}
-                          {chunk.length === 0 && (
-                            <tr>
-                              <td colSpan={7} className="text-center p-8 text-slate-400 italic border border-slate-300">
-                                এই তালিকায় কোন সদস্য নেই
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className="relative z-10 mt-auto pt-10 flex flex-col">
-                      {/* Signatures only on the LAST page */}
-                      {pageIndex === chunks.length - 1 && (
-                        <div className="flex justify-between text-sm font-semibold mb-8">
-                          <div className="text-center w-32 border-t border-slate-400 pt-2">
-                              সভাপতি
-                          </div>
-                          <div className="text-center w-32 border-t border-slate-400 pt-2">
-                              সাধারণ সম্পাদক
-                          </div>
+                  <div key={pageIndex} className="a4-paper flex flex-col relative overflow-hidden" style={{ marginBottom: pageIndex < chunks.length - 1 ? '5mm' : '0' }}>
+                    <div className="doc-box flex flex-col h-full relative">
+                      {logoUrl && (
+                        <div className="watermark-container">
+                          <img src={logoUrl} alt="" crossOrigin="anonymous" />
                         </div>
                       )}
                       
-                      <div className="border-t border-slate-300 pt-4 text-center text-xs text-slate-500 font-medium">
-                        পৃষ্ঠা {pageIndex + 1} / {chunks.length}
+                      <div className="relative z-10 flex flex-col h-full">
+                        <DocumentHeader logoUrl={logoUrl} settings={settings} />
+
+                        <div className="flex-1 flex flex-col">
+                        <div className="text-center mb-4">
+                          <span className="bg-[#111827] text-white px-6 py-1 rounded shadow-sm font-bold text-base uppercase tracking-wider">
+                            {getCouncilTitle(activeTab)}
+                          </span>
+                        </div>
+
+                        <table className="doc-table">
+                          <thead>
+                            <tr>
+                              <th className="w-10">নং</th>
+                              <th className="w-16">ছবি</th>
+                              <th>নাম</th>
+                              <th>পদবী/ধরন</th>
+                              <th>মোবাইল</th>
+                              <th className="w-12">রক্ত</th>
+                              <th>ঠিকানা</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {chunk.map((member, index) => {
+                              const globalIndex = index + 1 + (pageIndex * ROWS_PER_PAGE);
+
+                              return (
+                                <tr key={member.id} className="even:bg-slate-50/50">
+                                  <td className="text-center font-bold text-slate-500">{globalIndex}</td>
+                                  <td className="text-center">
+                                    <div className="flex flex-col items-center">
+                                      {member.profileImage ? (
+                                        <img src={member.profileImage} alt="" className="w-9 h-9 rounded-full object-cover border border-slate-200" />
+                                      ) : (
+                                        <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-300">
+                                          <User size={14} />
+                                        </div>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="font-bold text-slate-800">{member.name}</td>
+                                  <td className="text-slate-600">
+                                    {member.designation || (member.council === 'GENERAL' ? 'সাধারণ সদস্য' : 'সদস্য')}
+                                  </td>
+                                  <td className="font-mono">{member.phone}</td>
+                                  <td className="text-center font-bold text-rose-600">{member.bloodGroup || '-'}</td>
+                                  <td className="text-[9px] leading-tight text-slate-600">{member.address || '-'}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        
+                        {chunk.length === 0 && (
+                          <div className="flex-1 flex items-center justify-center p-12 text-slate-400 italic">
+                             এই তালিকায় কোন সদস্য নেই
+                          </div>
+                        )}
                       </div>
+
+                      <div className="mt-auto pt-16 flex justify-between items-end px-2 pb-8">
+                          <div className="text-center w-full">
+                              <div className="border-t-2 border-[#004d26] pt-1 pt-2">
+                                <p className="font-bold text-[#004d26] text-xs">সভাপতি</p>
+                                <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">আপন ফাউন্ডেশন</p>
+                              </div>
+                          </div>
+                          <div className="text-center w-full mx-4">
+                              <div className="border-t-2 border-[#004d26] pt-1 pt-2">
+                                <p className="font-bold text-[#004d26] text-xs">সাধারণ সম্পাদক</p>
+                                <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">আপন ফাউন্ডেশন</p>
+                              </div>
+                          </div>
+                          <div className="text-center w-full">
+                              <div className="border-t-2 border-[#004d26] pt-1 pt-2">
+                                <p className="font-bold text-[#004d26] text-xs">অর্থ সম্পাদক</p>
+                                <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">আপন ফাউন্ডেশন</p>
+                              </div>
+                          </div>
+                      </div>
+
+                        </div>
+
+                      <DocumentFooter settings={settings} />
                     </div>
                   </div>
                 ));
               })()}
+            </div>
           </div>
         )}
 

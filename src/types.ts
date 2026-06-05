@@ -113,4 +113,5 @@ export interface AppSettings {
     nagad?: string;
     rocket?: string;
   };
+  logo?: string | null;
 }

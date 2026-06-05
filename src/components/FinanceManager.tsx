@@ -924,8 +924,8 @@ export const FinanceManager: React.FC<Props> = ({ transactions, members, onAddTr
         </div>
       </div>
 
-      {/* HIDDEN A4 PRINT VIEW */}
-      <div className="hidden">
+      {/* HIDDEN A4 PRINT VIEW - Accessible but off-screen */}
+      <div className="fixed top-[-9999px] left-0 w-[210mm] opacity-0 pointer-events-none" aria-hidden="true">
         <div ref={printRef} className="a4-wrapper">
           {(() => {
             const ROWS_PER_PAGE = 25;

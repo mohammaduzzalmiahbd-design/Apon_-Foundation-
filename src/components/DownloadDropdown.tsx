@@ -56,120 +56,145 @@ export const DownloadDropdown: React.FC<DownloadDropdownProps> = ({
       // 2. Identify or tag the element for reliable retrieval in clonedDoc
       const captureAttr = 'data-capture-target';
       element.setAttribute(captureAttr, 'true');
-      const targetId = element.id;
 
       // 3. Naming and Scaling
       const dateStr = new Date().toISOString().split('T')[0];
       const fileName = `${fileNamePrefix}_${dateStr}_${pageSize}`;
 
-      // Scaling for High Resolution (600 DPI equivalent for A4)
-      // Standard 96 DPI * 6.25 = 600 DPI. 
-      // We use 4.0 as a balanced high-quality scale to avoid browser crashes on larger docs.
-      let dynamicScale = 4.0;
-      
+      // 4. PRE-CAPTURE RESOLUTION (The Big Fix for OKLCH and Blank Pages)
+      // Resolve colors on the element tree before passing to html2canvas
+      const canvasHelper = document.createElement('canvas');
+      canvasHelper.width = 1;
+      canvasHelper.height = 1;
+      const ctx = canvasHelper.getContext('2d');
+
+      const resolveColors = (el: HTMLElement) => {
+        try {
+          const style = window.getComputedStyle(el);
+          const colorProps = [
+            'color', 'backgroundColor', 'borderColor', 'fill', 'stroke', 
+            'outlineColor', 'borderTopColor', 'borderBottomColor', 'borderLeftColor', 'borderRightColor'
+          ];
+          
+          colorProps.forEach(prop => {
+            const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+            const val = style.getPropertyValue(cssProp);
+            // If it's a modern color or a variable, resolve it using canvas context
+            if (val && (val.includes('oklch') || val.includes('oklab') || val.includes('var(') || val.includes('oklch'))) {
+              if (ctx) {
+                try {
+                  ctx.fillStyle = '#000000'; // Reset
+                  ctx.fillStyle = val;
+                  const resolved = ctx.fillStyle;
+                  if (resolved && !resolved.includes('oklch') && !resolved.includes('oklab')) {
+                    el.style.setProperty(cssProp, resolved, 'important');
+                  }
+                } catch (e) {
+                  // Fallback for failed resolution
+                  if (cssProp === 'color') el.style.setProperty(cssProp, '#000000', 'important');
+                }
+              }
+            }
+          });
+          
+          if (style.backgroundImage && (style.backgroundImage.includes('oklch') || style.backgroundImage.includes('oklab'))) {
+              el.style.setProperty('background-image', 'none', 'important');
+          }
+
+          // Safety: Directly clean the style attribute if it contains oklch
+          const inlineStyle = el.getAttribute('style');
+          if (inlineStyle && (inlineStyle.includes('oklch') || inlineStyle.includes('oklab'))) {
+            const cleanedStyle = inlineStyle.replace(/(oklch|oklab)\([^)]+\)/g, '#000000');
+            el.setAttribute('style', cleanedStyle);
+          }
+        } catch (e) { /* ignore */ }
+      };
+
+      resolveColors(element);
+      element.querySelectorAll('*').forEach(el => resolveColors(el as HTMLElement));
+
+      // 5. Scaling (Target 600 DPI for A4)
+      // Screen DPI is ~96, so 600/96 ≈ 6.25. Let's use 6.0 for high resolution.
+      let dynamicScale = 6.0;
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      // If the area is massive (like a large family tree), we might need to throttle to prevent crash
       const rect = element.getBoundingClientRect();
       const area = rect.width * rect.height;
-      
-      // Safety limits for huge documents
-      if (pageSize === 'A0' || area > 8000000) dynamicScale = 1.0;
-      else if (pageSize === 'A1' || area > 4000000) dynamicScale = 2.0;
-      else if (area > 2000000) dynamicScale = 3.0;
-      
-      if (isMobile) dynamicScale = Math.min(dynamicScale, 1.5);
+      if (area > 5000000) dynamicScale = 3.0; // Moderate for large canvases
+      if (isMobile) dynamicScale = Math.min(dynamicScale, 2.0);
 
       const canvas = await html2canvas(element, {
         scale: dynamicScale,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         backgroundColor: '#ffffff',
         logging: false,
-        // 600 DPI Simulation: We inform the renderer to use high quality
-        imageTimeout: 15000,
-        // Responsive container for capture
-        windowWidth: isLandscape ? 2000 : 1500,
+        scrollX: 0,
+        scrollY: 0,
         onclone: (clonedDoc) => {
-          // 1. Silent resolution of modern CSS color functions (oklch/oklab)
-          // These break the html2canvas parser, so we resolve them to Hex/RGB in the clone.
-          const wideGamutRegex = /(oklch|oklab)\(\s*[^)]+\)/g;
-          const styleTags = clonedDoc.getElementsByTagName('style');
-          for (let i = 0; i < styleTags.length; i++) {
-            try {
-              if (styleTags[i].innerHTML.includes('oklch') || styleTags[i].innerHTML.includes('oklab')) {
-                // We neutralize them in the stylesheet string because we set REAL resolved colors below
-                styleTags[i].innerHTML = styleTags[i].innerHTML.replace(wideGamutRegex, 'rgba(0,0,0,0)');
-              }
-            } catch (e) { /* ignore */ }
-          }
-
-          const allElements = clonedDoc.querySelectorAll('*');
-          const canvasHelper = clonedDoc.createElement('canvas');
-          const ctx = canvasHelper.getContext('2d');
-
-          allElements.forEach((el) => {
-            const node = el as HTMLElement;
-            try {
-              const computed = window.getComputedStyle(node);
-              const colorProps = ['color', 'backgroundColor', 'borderColor', 'fill', 'stroke', 'stopColor'];
-              
-              colorProps.forEach(prop => {
-                const cssProp = prop.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
-                const val = computed.getPropertyValue(cssProp);
-                
-                // If the color is dynamic (oklch, oklab, var), resolve it using the browser's engine
-                if (val && (val.includes('oklch') || val.includes('oklab') || val.includes('var('))) {
-                  if (ctx) {
-                    ctx.fillStyle = val;
-                    const resolved = ctx.fillStyle;
-                    if (resolved && !resolved.includes('oklch') && !resolved.includes('oklab')) {
-                      node.style.setProperty(cssProp, resolved, 'important');
-                    }
-                  }
-                }
-              });
-
-              // Disable problematic gradients that contain oklch to prevent parser crash
-              const bgImg = computed.getPropertyValue('background-image');
-              if (bgImg && (bgImg.includes('oklch') || bgImg.includes('oklab'))) {
-                const bgColor = computed.getPropertyValue('background-color');
-                node.style.setProperty('background-image', 'none', 'important');
-                if (bgColor) node.style.setProperty('background-color', bgColor, 'important');
-              }
-            } catch (e) { /* skip */ }
-          });
-
-          // 2. Layout Preservation - DO NOT override A4 or user-defined sizing
           const target = clonedDoc.querySelector(`[${captureAttr}="true"]`) as HTMLElement;
           if (target) {
-            const isA4 = target.classList.contains('a4-paper') || (target.style.height && (target.style.height.includes('mm') || target.style.height.includes('cm') || target.style.height.includes('in')));
-            
-            if (isA4) {
-               // Preserve A4 flex layout and dimensions exactly as defined in generator
-               target.style.display = 'flex';
-               target.style.flexDirection = 'column';
-               target.style.width = isLandscape ? '297mm' : '210mm';
-               target.style.margin = '0';
-               // Note: padding is preserved from original inline style (20mm 25mm etc)
-            } else {
-               // For tree/poster formats, use stable capture width
-               target.style.width = isLandscape ? '1500px' : '1200px';
-               target.style.margin = '0 auto';
-               target.style.padding = '40px'; 
-            }
-            
-            target.style.backgroundColor = '#ffffff';
-            target.style.visibility = 'visible';
-            target.style.position = 'relative'; 
-            target.style.opacity = '1';
-            target.style.transform = 'none';
+            clonedDoc.head.querySelectorAll('link[rel="stylesheet"], style, script').forEach(n => n.remove());
 
-            let parent = target.parentElement;
-            while (parent && parent !== clonedDoc.body) {
-              parent.style.display = 'block';
-              parent.style.visibility = 'visible';
-              parent.style.opacity = '1';
-              parent = parent.parentElement;
-            }
+            const clonedBody = clonedDoc.body;
+            clonedBody.innerHTML = '';
+            clonedBody.appendChild(target);
+            
+            clonedBody.style.cssText = 'background: white !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; width: 100% !important; min-height: 100% !important;';
+            target.style.cssText = `
+              position: relative !important;
+              top: 0 !important;
+              left: 0 !important;
+              margin: 0 !important;
+              visibility: visible !important;
+              opacity: 1 !important;
+              display: block !important;
+              transform: none !important;
+              width: ${isLandscape ? '297mm' : '210mm'} !important;
+              background: white !important;
+            `;
+            
+            const safeStyle = clonedDoc.createElement('style');
+            safeStyle.innerHTML = `
+              * { box-sizing: border-box !important; }
+              .a4-paper { 
+                width: ${isLandscape ? '297mm' : '210mm'} !important; 
+                height: ${isLandscape ? '210mm' : '297mm'} !important; 
+                background: white !important; 
+                display: flex !important; 
+                flex-direction: column !important;
+                margin: 0 auto !important;
+                padding: 5mm !important;
+                box-shadow: none !important;
+                position: relative !important;
+                transform: none !important;
+                box-sizing: border-box !important;
+              }
+              .doc-box { 
+                border: 4px double #004d26 !important; 
+                height: calc(100% - 1px) !important; 
+                background: white !important; 
+                padding: 10mm !important; 
+                flex: 1 !important; 
+                position: relative !important;
+                box-sizing: border-box !important;
+                display: flex !important;
+                flex-direction: column !important;
+              }
+              .document-header { text-align: center !important; display: flex !important; flex-direction: column !important; items-center !important; width: 100% !important; margin-bottom: 25px !important; }
+              .font-amiri { text-align: center !important; width: 100% !important; display: block !important; margin-bottom: 10px !important; }
+              .opacity-[0.015], .opacity-[0.02], .opacity-[0.03], .opacity-[0.05] { opacity: 0.02 !important; }
+              img { max-width: 100% !important; display: block !important; margin: 0 auto !important; }
+              h1 { margin-bottom: 5px !important; width: 100% !important; text-align: center !important; }
+              .flex { display: flex !important; }
+              .flex-col { flex-direction: column !important; }
+              .items-center { align-items: center !important; }
+              .justify-center { justify-content: center !important; }
+              * { -webkit-print-color-adjust: exact !important; color-adjust: exact !important; }
+            `;
+            clonedDoc.head.appendChild(safeStyle);
+            clonedDoc.querySelectorAll('script, link, noscript').forEach(el => el.remove());
           }
         }
       });

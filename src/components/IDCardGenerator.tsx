@@ -17,6 +17,24 @@ export const IDCardGenerator: React.FC<Props> = ({ members, logoUrl, settings })
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [qrCodes, setQrCodes] = useState<Record<string, string>>({});
   const gridRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [docScale, setDocScale] = useState(1);
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.clientWidth - 48;
+        if (containerWidth < 794) {
+          setDocScale(containerWidth / 794);
+        } else {
+          setDocScale(1);
+        }
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Filter members
   const filteredMembers = members.filter(m => 
@@ -106,7 +124,7 @@ export const IDCardGenerator: React.FC<Props> = ({ members, logoUrl, settings })
           </div>
           <div className="flex flex-col flex-1 leading-[1]">
             <h1 className="text-[14px] font-bold font-bengali tracking-tight transform translate-y-[-1.2mm]">
-              <BrandText text="আপন ফাউন্ডেশন" />
+              <span className="text-[#004d26]">আপন</span> <span className="text-[#cc0000]">ফাউন্ডেশন</span>
             </h1>
             <p className="text-[7px] text-slate-600 font-bold font-bengali leading-none">বালীগাঁও, অষ্টগ্রাম, কিশোরগঞ্জ</p>
           </div>
@@ -249,43 +267,47 @@ export const IDCardGenerator: React.FC<Props> = ({ members, logoUrl, settings })
         </div>
 
         {/* Live Grid Preview */}
-        <div className="flex-1 bg-slate-200 p-8 rounded-2xl border border-slate-300 overflow-auto min-h-[600px]">
-          <div className="flex flex-col items-center gap-4 mb-4 no-print text-slate-500 italic text-sm">
-             <LayoutGrid size={24} />
-             <span>প্রিভিউ: A4 পৃষ্ঠায় কার্ডগুলোর সজ্জা</span>
-          </div>
+        <div className="flex-1 order-1 lg:order-2">
+          <div ref={containerRef} className="a4-preview-area rounded-2xl border border-slate-300 shadow-inner min-h-[600px]">
+            <div className="flex flex-col items-center gap-4 mb-4 no-print text-slate-500 italic text-sm pt-4">
+               <LayoutGrid size={24} />
+               <span>প্রিভিউ: A4 পৃষ্ঠায় কার্ডগুলোর সজ্জা</span>
+            </div>
 
-          <div className="flex justify-center">
-            {/* The printable A4 Container */}
-            <div 
-              ref={gridRef}
-              id="id-card-grid"
-              className="a4-grid-container bg-white shadow-2xl relative overflow-hidden"
-              style={{
-                width: '210mm',
-                minHeight: '297mm',
-                padding: '10mm',
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 54mm)',
-                gridAutoRows: '85.6mm',
-                gap: '5mm',
-                justifyContent: 'center',
-                alignContent: 'start',
-                backgroundColor: 'white'
-              }}
-            >
-              {/* Dummy header/footer to block DownloadDropdown from injecting global ones */}
-              <div className="document-header hidden"></div>
-              <div className="document-footer hidden"></div>
-
-              {selectedMembers.length > 0 ? (
-                selectedMembers.map(m => <IDCard key={m.id} member={m} />)
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300 pointer-events-none col-span-2">
-                  <CreditCard size={120} className="opacity-10 mb-4" />
-                  <p className="text-xl font-bold opacity-20">নির্বাচন করুন কার্ড জেনারেট হবে</p>
-                </div>
-              )}
+            <div className="flex justify-center pb-8">
+              {/* Visual Preview & Capture Area */}
+              <div 
+                ref={gridRef}
+                className="a4-paper shadow-2xl transition-transform duration-300 origin-top overflow-hidden"
+                style={{
+                  padding: '10mm',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 54mm)',
+                  gridAutoRows: '85.6mm',
+                  gap: '5mm',
+                  justifyContent: 'center',
+                  alignContent: 'start',
+                  backgroundColor: 'white',
+                  transform: `scale(${docScale})`,
+                  position: 'relative'
+                }}
+              >
+                {/* Global Page Watermark */}
+                {logoUrl && (
+                    <div className="watermark-container">
+                        <img src={logoUrl} alt="Watermark" crossOrigin="anonymous" />
+                    </div>
+                )}
+                
+                {selectedMembers.length > 0 ? (
+                  selectedMembers.map(m => <IDCard key={m.id} member={m} />)
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300 pointer-events-none col-span-2">
+                    <CreditCard size={120} className="opacity-10 mb-4" />
+                    <p className="text-xl font-bold opacity-20">নির্বাচন করুন কার্ড জেনারেট হবে</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

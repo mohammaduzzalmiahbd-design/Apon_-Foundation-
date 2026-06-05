@@ -12,61 +12,52 @@ interface Props {
 
 export const DocumentHeader: React.FC<Props> = ({ logoUrl, settings, rightElement, isCompact = false }) => {
   return (
-    <div className={`document-header relative w-full z-10 ${isCompact ? 'mb-4' : 'mb-10'}`}>
-      {/* Header Content Wrapper */}
-      <div className={`relative border-b-4 border-double border-[#004d26] pb-6 mb-6 flex flex-col items-center text-center w-full`}>
-        
-        {/* Logo - Positioned absolutely to not break centering if needed, but usually better centered at top */}
+    <div className={`document-header relative z-20 w-full text-center ${isCompact ? 'mb-2' : 'mb-6'}`}>
+      {/* 1. Bismillah (Always top center) */}
+      <p className="font-amiri text-black mb-1 text-center w-full" dir="rtl" style={{ fontFamily: "'Amiri', serif", fontSize: isCompact ? '14px' : '22px' }}>
+        بسم الله الرحمن الرحيم
+      </p>
+
+      <div className="flex items-center justify-center gap-6 w-full">
+        {/* 2. Logo (To the left of text) */}
         {logoUrl && (
-          <div className={`${isCompact ? 'w-20 h-20 mb-2' : 'w-28 h-28 mb-4'} flex-shrink-0`}>
+          <div className={`${isCompact ? 'w-16 h-16' : 'w-28 h-28'} flex items-center justify-center shrink-0`}>
             <img 
               src={logoUrl} 
               alt="Logo" 
-              className="w-full h-full object-contain" 
+              className="max-w-full max-h-full object-contain" 
               crossOrigin="anonymous"
             />
           </div>
         )}
 
-        {/* 1. Bismillah (Top) */}
-        <p className={`font-bold mb-2 ${isCompact ? 'text-xs' : 'text-2xl'}`} style={{ fontFamily: "'Amiri', serif" }}>
-          بسم الله الرحمن الرحيم
-        </p>
-        
-        {/* 2. Brand Name */}
-        <h1 className={`${isCompact ? 'text-3xl' : 'text-5xl'} font-black uppercase tracking-tight leading-none mb-3 font-serif`}>
-          <BrandText text="আপন ফাউন্ডেশন" />
-        </h1>
-        
-        {/* 3. Address */}
-        <p className={`text-slate-800 font-bold leading-relaxed mb-1 ${isCompact ? 'text-[11px]' : 'text-xl'}`}>
-          ঠিকানা: {settings?.contact?.address || 'বালিগাঁও, অষ্টগ্রাম, কিশোরগঞ্জ'}
-        </p>
-        
-        {/* 4. Email & WhatsApp */}
-        <div className={`flex flex-col items-center text-slate-700 font-bold ${isCompact ? 'text-[10px] gap-0' : 'text-base gap-1'}`}>
-          <p>ইমেইল আইডি: {settings?.contact?.email || 'aponfoundation@gmail.com'}</p>
-          <p>হোয়াটসঅ্যাপ নাম্বার: {settings?.contact?.whatsapp || settings?.contact?.phone || '০১৬০৮-৪২৭১১৫'}</p>
-        </div>
-        
-        {/* Registration Info (Optional but good to keep) */}
-        <div className={`flex items-center justify-center gap-3 text-slate-500 font-semibold ${isCompact ? 'mt-1 text-[8px]' : 'mt-2 text-xs'}`}>
-          <span>স্থাপিত: {settings?.organization?.foundingYear || '২০২৫'}</span>
-          {(settings?.organization?.registrationNo) && (
-            <>
-              <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-              <span>রেজি: {settings?.organization?.registrationNo}</span>
-            </>
-          )}
-        </div>
-
-        {/* Right Element (Overlay if needed, like "Voucher" tag) */}
-        {rightElement && (
-           <div className="absolute top-0 right-0">
-             {rightElement}
+        {/* 3. Organization Name and Details */}
+        <div className="flex flex-col items-center">
+           <h1 className={`${isCompact ? 'text-2xl' : 'text-5xl'} font-black mb-2 tracking-tight`}>
+              <span className="text-[#004d26]">আপন</span> <span className="text-[#cc0000]">ফাউন্ডেশন</span>
+           </h1>
+           <div className={`${isCompact ? 'text-[11px]' : 'text-[14px]'} text-black font-bold flex flex-col items-center gap-1`}>
+              <p>ঠিকানা: {settings?.contact?.address || 'বালীগাঁও, অষ্টগ্রাম, কিশোরগঞ্জ, বাংলাদেশ'}</p>
+              <div className="flex gap-4">
+                <p>ইমেইল: {settings?.contact?.email || 'aponfoundation.baligaw@gmail.com'}</p>
+                <p>হোয়াটসঅ্যাপ: {settings?.contact?.whatsapp || '+৮৮০১৬০৮-৪২৭১১৫'}</p>
+              </div>
+              <p className="text-[#004d26] font-bold">স্থাপিত: {settings?.organization?.foundingYear || '২০২৫'}</p>
            </div>
-        )}
+        </div>
       </div>
+
+      {/* 4. Professional Double Line Border (Full Width) */}
+      <div className="w-full mt-3 flex flex-col gap-[3px]">
+         <div className="w-full h-[3px] bg-[#004d26]"></div>
+         <div className="w-full h-[1px] bg-[#004d26]"></div>
+      </div>
+      
+      {rightElement && (
+         <div className="absolute top-0 right-0 no-print">
+           {rightElement}
+         </div>
+      )}
     </div>
   );
 };
